@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>NFB Ph2 Expansion — DICT Regional Office 2 · Tuguegarao City</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  html, body, #map { height: 100%; margin: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: #040914;
+    color: #eaf2ff;
+    overflow: hidden;
+  }
+  .leaflet-container { background: #040914; }
+
+  /* Cinematic deep-navy night grade on real satellite imagery */
+  .sat-night-tiles {
+    filter: grayscale(0.75) sepia(0.45) hue-rotate(178deg) brightness(0.46) contrast(1.25) saturate(1.7);
+  }
+  .dark-clean-tiles {
+    filter: brightness(0.78) contrast(1.18) saturate(1.1);
+  }
+  .osm-night-tiles {
+    filter: invert(100%) hue-rotate(195deg) brightness(0.72) contrast(1.15) saturate(0.45);
+  }
+
+  /* Cinema vignette + subtle broadcast scanlines */
+  #vignette {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 450;
+    background:
+      radial-gradient(ellipse at center, transparent 52%, rgba(2, 6, 18, 0.78) 100%),
+      linear-gradient(180deg, rgba(2, 6, 18, 0.55) 0%, transparent 14%, transparent 82%, rgba(2, 6, 18, 0.72) 100%);
+  }
+
+  /* Broadcast HUD Header */
+  #hud {
+    position: absolute;
+    left: 22px;
+    top: 18px;
+    z-index: 1000;
+    pointer-events: none;
+  }
+  #hud .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .28em;
+    text-transform: uppercase;
+    color: #38bdf8;
+    margin-bottom: 4px;
+  }
+  #hud .live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22d3ee;
+    box-shadow: 0 0 12px #22d3ee;
+    animation: liveBlink 1.8s ease-in-out infinite;
+  }
+  @keyframes liveBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+  #hud h1 {
+    margin: 0;
+    font-size: clamp(18px, 2vw, 26px);
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: #e0f2fe;
+    text-shadow: 0 0 24px rgba(56,189,248,.65);
+  }
+  #hud small {
+    display: block;
+    font-size: 11px;
+    letter-spacing: .24em;
+    color: #94a3b8;
+    margin-top: 4px;
+    text-transform: uppercase;
+  }
+
+  /* Live Broadcast Stat Chips (interactive click-to-filter!) */
+  #stats {
+    position: absolute;
+    left: 22px;
+    bottom: 20px;
+    z-index: 1000;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    pointer-events: auto;
+  }
+  .chip {
+    position: relative;
+    background: rgba(6, 14, 34, 0.86);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    border-radius: 11px;
+    padding: 9px 15px;
+    min-width: 112px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 26px rgba(0, 0, 0, 0.45);
+    transition: transform .18s ease, box-shadow .22s ease, border-color .22s ease, opacity .22s ease;
+  }
+  .chip.filterable { cursor: pointer; }
+  .chip.filterable:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.65); }
+  .chip.dimmed { opacity: 0.45; }
+  .chip.active-cat { transform: translateY(-3px) scale(1.04); }
+
+  .chip-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .chip[data-cat="hall"] { border-top: 3px solid #22d3ee; }
+  .chip[data-cat="hall"] b { color: #22d3ee; }
+  .chip[data-cat="hall"].active-cat { border-color: #22d3ee; box-shadow: 0 0 28px rgba(34, 211, 238, 0.65); }
+
+  .chip[data-cat="school"] { border-top: 3px solid #fbbf24; }
+  .chip[data-cat="school"] b { color: #fbbf24; text-shadow: 0 0 14px rgba(251, 191, 36, 0.5); }
+  .chip[data-cat="school"].active-cat { border-color: #fbbf24; box-shadow: 0 0 28px rgba(251, 191, 36, 0.7); }
+
+  .chip[data-cat="gov"] { border-top: 3px solid #e879f9; }
+  .chip[data-cat="gov"] b { color: #e879f9; text-shadow: 0 0 14px rgba(232, 121, 249, 0.5); }
+  .chip[data-cat="gov"].active-cat { border-color: #e879f9; box-shadow: 0 0 28px rgba(232, 121, 249, 0.7); }
+
+  .chip[data-cat="all"].active-cat { border-color: #38bdf8; box-shadow: 0 0 24px rgba(56, 189, 248, 0.55); }
+
+  .chip b {
+    display: block;
+    font-size: 20px;
+    color: #38bdf8;
+    font-family: Consolas, 'Cascadia Mono', monospace;
+    text-shadow: 0 0 14px rgba(56, 189, 248, 0.45);
+  }
+  .chip span {
+    font-size: 10px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: #cbd5e1;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Interactive Toolbar (hidden in Stage Autoplay or Clean Mode) */
+  #toolbar {
+    position: absolute;
+    right: 18px;
+    top: 16px;
+    z-index: 1000;
+    display: flex;
+    gap: 7px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    max-width: 780px;
+  }
+  .btn, .select-jump {
+    background: rgba(8, 18, 40, 0.88);
+    color: #e0f2fe;
+    border: 1px solid rgba(56, 189, 248, 0.42);
+    padding: 7px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    transition: transform .15s ease, background .2s, box-shadow .2s;
+  }
+  .select-jump { max-width: 210px; outline: none; }
+  .select-jump option { background: #071228; color: #eaf2ff; }
+  .btn:hover { transform: translateY(-1px); background: rgba(14,165,233,.28); box-shadow: 0 0 16px rgba(56,189,248,.35); }
+  .btn.primary {
+    background: linear-gradient(120deg, #0ea5e9, #2563eb);
+    border: 0;
+    color: #fff;
+    padding: 8px 18px;
+    box-shadow: 0 0 22px rgba(56,189,248,.55);
+  }
+  .btn.active { background: rgba(56,189,248,.3); border-color: #38bdf8; color: #fff; }
+
+  /* Floating Zoom Controls (right side) */
+  #zoomDock {
+    position: absolute;
+    right: 18px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .zbtn {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    background: rgba(6, 14, 34, 0.86);
+    color: #e0f2fe;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .15s, transform .15s;
+  }
+  .zbtn:hover { background: rgba(14, 165, 233, 0.35); transform: scale(1.06); }
+  #zoomLevel {
+    font-size: 10px;
+    text-align: center;
+    color: #7dd3fc;
+    font-family: Consolas, monospace;
+    background: rgba(6, 14, 34, 0.78);
+    border-radius: 6px;
+    padding: 3px 0;
+  }
+
+  /* Cinema Broadcast Caption Bar */
+  #caption {
+    position: absolute;
+    left: 50%;
+    bottom: 98px;
+    transform: translateX(-50%) translateY(8px);
+    z-index: 1000;
+    background: rgba(4, 11, 28, 0.84);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    border-left: 4px solid #38bdf8;
+    padding: 13px 26px;
+    max-width: min(86vw, 860px);
+    font-size: clamp(14px, 1.5vw, 20px);
+    font-weight: 500;
+    letter-spacing: .04em;
+    color: #f0f9ff;
+    border-radius: 10px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55);
+    opacity: 0;
+    transition: opacity .5s ease, transform .5s ease;
+    pointer-events: none;
+    text-align: center;
+  }
+  #caption.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Progress bar along very bottom during cinematic */
+  #cineProgress {
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    height: 3px;
+    width: 0%;
+    z-index: 1100;
+    background: linear-gradient(90deg, #38bdf8, #22d3ee, #34d399);
+    box-shadow: 0 0 14px #38bdf8;
+    transition: width 0.25s linear;
+  }
+
+  /* Finale Broadcast Overlay Card */
+  #finaleCard {
+    position: fixed;
+    left: 50%;
+    bottom: 110px;
+    transform: translateX(-50%) scale(0.96);
+    z-index: 1050;
+    background: linear-gradient(160deg, rgba(6, 20, 48, 0.9), rgba(4, 11, 28, 0.92));
+    border: 1px solid rgba(56, 189, 248, 0.45);
+    border-radius: 18px;
+    padding: 20px 34px;
+    text-align: center;
+    backdrop-filter: blur(14px);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.65), 0 0 40px rgba(56, 189, 248, 0.22);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.8s ease, transform 0.8s ease;
+    max-width: 90vw;
+  }
+  #finaleCard.show { opacity: 1; transform: translateX(-50%) scale(1); }
+  #finaleCard .f-sub {
+    font-size: 11px;
+    letter-spacing: .32em;
+    text-transform: uppercase;
+    color: #38bdf8;
+    margin-bottom: 6px;
+  }
+  #finaleCard h2 {
+    margin: 0;
+    font-size: clamp(20px, 2.4vw, 32px);
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: #fff;
+    text-shadow: 0 0 24px rgba(56, 189, 248, 0.6);
+  }
+  #finaleCard .f-meta {
+    margin-top: 8px;
+    font-size: 13px;
+    letter-spacing: .12em;
+    color: #cbd5e1;
+  }
+  #finaleLogos {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+  #finaleLogos img {
+    height: 36px;
+    width: auto;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.6));
+  }
+
+  .leaflet-control-layers, .leaflet-bar a {
+    background: rgba(6,13,30,.88) !important;
+    color: #eaf2ff !important;
+    border-color: rgba(56,189,248,.3) !important;
+  }
+  .leaflet-control-layers label { color: #eaf2ff; }
+  .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #081329; color: #eaf2ff; border: 1px solid rgba(56,189,248,.35); }
+
+  /* Stage Mode: hide interactive controls, keep cinema HUD + stats + captions */
+  body.stage-mode #toolbar,
+  body.stage-mode #zoomDock,
+  body.stage-mode .leaflet-control-container {
+    display: none !important;
+  }
+  /* Clean Mode (H): hide everything */
+  body.clean-mode #hud,
+  body.clean-mode #stats,
+  body.clean-mode #toolbar,
+  body.clean-mode #zoomDock,
+  body.clean-mode #caption,
+  body.clean-mode #finaleCard,
+  body.clean-mode #cineProgress,
+  body.clean-mode .leaflet-control-container {
+    display: none !important;
+  }
+
+  /* Pulsing DICT Regional Office 2 beacon */
+  .hub-wrap { position: relative; width: 76px; height: 76px; display: flex; align-items: center; justify-content: center; }
+  .hub-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2.5px solid rgba(56, 189, 248, 0.9);
+    box-shadow: 0 0 26px rgba(56, 189, 248, 0.8);
+    animation: hubPulse 2.2s cubic-bezier(0.2, 0.8, 0.3, 1) infinite;
+  }
+  .hub-ring.r2 { animation-delay: 0.75s; }
+  .hub-ring.r3 { animation-delay: 1.5s; }
+  .hub-core {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 45% 40%, #ffffff 0%, #38bdf8 40%, #0284c7 80%, #082f49 100%);
+    border: 2px solid #e0f2fe;
+    box-shadow: 0 0 30px #38bdf8, 0 0 70px rgba(56, 189, 248, 0.95);
+  }
+  .hub-wrap.dim .hub-ring { opacity: 0.2; }
+  .hub-wrap.dim .hub-core { box-shadow: 0 0 12px rgba(56, 189, 248, 0.45); opacity: 0.55; }
+
+  @keyframes hubPulse {
+    0% { transform: scale(0.4); opacity: 1; }
+    100% { transform: scale(2.4); opacity: 0; }
+  }
+
+  /* Spotlight Landmark Callout Pill */
+  .spot-label {
+    background: rgba(5, 15, 36, 0.9);
+    border: 1px solid rgba(56, 189, 248, 0.65);
+    border-left: 3px solid #22d3ee;
+    color: #f0f9ff;
+    padding: 5px 11px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6), 0 0 16px rgba(34, 211, 238, 0.35);
+    animation: spotPop 0.4s ease-out;
+  }
+  .spot-label small { display: block; font-size: 9px; font-weight: 500; color: #7dd3fc; letter-spacing: .12em; margin-top: 1px; }
+  @keyframes spotPop { 0% { opacity: 0; transform: translateY(6px) scale(0.92); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
+
+  /* Ripple wave on newly ignited site */
+  .site-ripple {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid #67e8f9;
+    box-shadow: 0 0 14px #22d3ee;
+    animation: siteRipple 0.95s ease-out forwards;
+    pointer-events: none;
+  }
+  @keyframes siteRipple {
+    0% { transform: scale(0.3); opacity: 1; }
+    100% { transform: scale(2.6); opacity: 0; }
+  }
+
+  /* Moving optical packet head along fiber */
+  .pulse-head {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #ffffff 0%, #38bdf8 55%, transparent 100%);
+    box-shadow: 0 0 18px #ffffff, 0 0 32px #38bdf8;
+    pointer-events: none;
+  }
+
+  /* Color-coded glow for beneficiary categories (fiber uses 3-layer optical panes) */
+  .site-glow-hall { filter: drop-shadow(0 0 7px rgba(34, 211, 238, 0.95)); }
+  .site-glow-school { filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.95)); }
+  .site-glow-gov { filter: drop-shadow(0 0 8px rgba(232, 121, 249, 0.95)); }
+</style>
+</head>
+<body>
+<div id="vignette"></div>
+<div id="cineProgress"></div>
+
+<div id="hud">
+  <div class="eyebrow"><span class="live-dot"></span>Free Wi-Fi for All · DICT Region 2</div>
+  <h1>NFB — Phase 2 Expansion</h1>
+  <small>Origin: DICT Regional Office 2 → Tuguegarao City · 93 Beneficiaries</small>
+</div>
+
+<div id="toolbar">
+  <select class="select-jump" id="jumpSelect" title="Zoom directly to any beneficiary">
+    <option value="">🔍 Zoom to Beneficiary…</option>
+    <option value="HUB">⭐ DICT Regional Office 2 (Origin Hub)</option>
+  </select>
+  <button class="btn" id="voiceBtn" title="Load a .mp3 or .wav voiceover from Local Voice Studio">🎙 Voiceover</button>
+  <input type="file" id="voiceFile" accept="audio/*" style="display:none" />
+  <button class="btn" id="audioBtn" title="Toggle cinema sound & SFX">🔊 Sound: ON</button>
+  <button class="btn" id="cleanBtn" title="Hide all UI (Shortcut: H)">Hide UI (H)</button>
+  <button class="btn primary" id="cineBtn" title="Play 42s Zoom Cinematic (Shortcut: Space)">▶&nbsp; PLAY CINEMATIC</button>
+</div>
+
+<div id="zoomDock">
+  <button class="zbtn" id="zIn" title="Zoom In (+)">+</button>
+  <div id="zoomLevel">12.5×</div>
+  <button class="zbtn" id="zOut" title="Zoom Out (-)">−</button>
+  <button class="zbtn" id="zHub" title="Zoom to DICT Regional Office 2">◎</button>
+  <button class="zbtn" id="zFit" title="Fit Full Network">⤢</button>
+</div>
+
+<div id="stats">
+  <div class="chip filterable active-cat" id="chip-all" data-cat="all" title="Click to show all 93 beneficiaries"><b id="st-sites">93</b><span>All Sites</span></div>
+  <div class="chip filterable" id="chip-hall" data-cat="hall" title="Click to highlight only Barangay Halls"><b id="st-halls">44</b><span><i class="chip-dot" style="background:#22d3ee;box-shadow:0 0 8px #22d3ee"></i>Barangay Halls</span></div>
+  <div class="chip filterable" id="chip-school" data-cat="school" title="Click to highlight only Schools / CSU"><b id="st-schools">32</b><span><i class="chip-dot" style="background:#fbbf24;box-shadow:0 0 8px #fbbf24"></i>Schools / CSU</span></div>
+  <div class="chip filterable" id="chip-gov" data-cat="gov" title="Click to highlight only Gov / Public Institutions"><b id="st-gov">17</b><span><i class="chip-dot" style="background:#e879f9;box-shadow:0 0 8px #e879f9"></i>Gov / Public</span></div>
+  <div class="chip"><b id="st-km">45.5 km</b><span>Fiber Optic</span></div>
+  <div class="chip"><b id="st-naps">47</b><span>NAPs · 6 LCPs</span></div>
+</div>
+
+<div id="caption"></div>
+
+<div id="finaleCard">
+  <div class="f-sub">DICT Regional Office 2 · Cagayan Valley</div>
+  <h2>Tuguegarao City — Connected</h2>
+  <div class="f-meta">45.5 km Fiber Network · 93 Beneficiary Sites Live · Free Wi-Fi for All</div>
+  <div id="finaleLogos"></div>
+</div>
+
+<div id="map"></div>
+
+<script>
+const DATA = {"hub":{"n":"DICT Regional Office 2","p":[17.6214374,121.7219058]},"sites":[{"n":"Land Transportation Office","p":[17.62211,121.7212],"cat":"gov","km":0.11,"d":0.00097},{"n":"PDRRMO","p":[17.62255,121.72165],"cat":"gov","km":0.13,"d":0.00114},{"n":"TUGUEGARAO CITY HEALTH OFFICE","p":[17.62252,121.721287],"cat":"gov","km":0.14,"d":0.00125},{"n":"Civil Service Commission (Cagayan Provincial Field Office)","p":[17.62254,121.720846],"cat":"gov","km":0.17,"d":0.00153},{"n":"Post Office","p":[17.62308,121.72121],"cat":"gov","km":0.2,"d":0.00178},{"n":"Commision on Population and Development R2","p":[17.623557,121.7209],"cat":"gov","km":0.26,"d":0.00235},{"n":"Cagayan National High School","p":[17.618912,121.722959],"cat":"school","km":0.3,"d":0.00274},{"n":"Cagayan State University-Andrews","p":[17.620359,121.724954],"cat":"school","km":0.34,"d":0.00323},{"n":"Tuguegarao North CS","p":[17.621321,121.725327],"cat":"school","km":0.36,"d":0.00342},{"n":"Caritan Centro Barangay Hall","p":[17.621881,121.726114],"cat":"hall","km":0.45,"d":0.00423},{"n":"Cagayan Provincial Learning and Resource center","p":[17.618825,121.725759],"cat":"gov","km":0.5,"d":0.00466},{"n":"Department of Public Works and Highways - TED","p":[17.625817,121.718887],"cat":"gov","km":0.58,"d":0.00532},{"n":"Deparment of Agriculture","p":[17.625485,121.718388],"cat":"gov","km":0.58,"d":0.00536},{"n":"Centro 8 (Pob.) Barangay Hall","p":[17.617371,121.7258],"cat":"hall","km":0.61,"d":0.00563},{"n":"San Gabriel Barangay Hall","p":[17.621441,121.71606],"cat":"hall","km":0.62,"d":0.00585},{"n":"DWPE Radyo ng Bayan","p":[17.626363,121.718341],"cat":"gov","km":0.67,"d":0.00608},{"n":"National Food Authority","p":[17.62663,121.7181],"cat":"gov","km":0.7,"d":0.00644},{"n":"Department of Environemnt and Natural Resources - CENRO","p":[17.626792,121.717428],"cat":"gov","km":0.76,"d":0.00698},{"n":"Centro 4 (Pob.) Barangay Hall","p":[17.6159,121.727],"cat":"hall","km":0.82,"d":0.00752},{"n":"Tuguegarao City Science High School","p":[17.613901,121.725078],"cat":"school","km":0.9,"d":0.00818},{"n":"Centro 3 (Pob.) Barangay Hall","p":[17.6142,121.726],"cat":"hall","km":0.91,"d":0.00832},{"n":"San Gabriel Elementary School","p":[17.619889,121.713614],"cat":"school","km":0.9,"d":0.00844},{"n":"Tuguegarao People's Gym","p":[17.613444,121.72516],"cat":"gov","km":0.95,"d":0.00863},{"n":"Tuguegarao West Central School","p":[17.61282,121.721383],"cat":"school","km":0.96,"d":0.00863},{"n":"Caritan Norte Barangay Hall","p":[17.630375,121.723089],"cat":"hall","km":1,"d":0.00902},{"n":"Centro 7 (Pob.) Barangay Hall","p":[17.614613,121.728178],"cat":"hall","km":1.01,"d":0.00927},{"n":"Pengue (Pengue-Ruyu) Barangay Hall","p":[17.629336,121.726846],"cat":"hall","km":1.02,"d":0.00932},{"n":"Centro 2 (Pob.) Barangay Hall","p":[17.6116,121.726801],"cat":"hall","km":1.21,"d":0.01099},{"n":"TUGUEGARAO CITY PEOPLES GENERAL HOSPITAL","p":[17.612935,121.729519],"cat":"gov","km":1.24,"d":0.01141},{"n":"Centro 10 (Pob.) Barangay Hall","p":[17.614967,121.731348],"cat":"hall","km":1.23,"d":0.01145},{"n":"Centro 6 (Pob.) Barangay Hall","p":[17.612751,121.72975],"cat":"hall","km":1.27,"d":0.0117},{"n":"Ugac Sur Barangay Hall","p":[17.610217,121.717724],"cat":"hall","km":1.32,"d":0.01197},{"n":"Centro 11 (Pob.) Barangay Hall","p":[17.623404,121.73381],"cat":"hall","km":1.28,"d":0.01207},{"n":"Balzain East ES","p":[17.623199,121.734013],"cat":"school","km":1.3,"d":0.01223},{"n":"Tuguegarao East CS","p":[17.611782,121.729607],"cat":"school","km":1.35,"d":0.01235},{"n":"Atulayan Sur Barangay Hall","p":[17.634184,121.72084],"cat":"hall","km":1.42,"d":0.01279},{"n":"Cagayan Provincial Museum","p":[17.611654,121.730777],"cat":"gov","km":1.44,"d":0.01321},{"n":"Centro 5 (Pob.) Barangay Hall","p":[17.609206,121.72729],"cat":"hall","km":1.47,"d":0.01336},{"n":"Ugac Elementary School","p":[17.611071,121.713347],"cat":"school","km":1.47,"d":0.01344},{"n":"Atulayan ES","p":[17.63515,121.720276],"cat":"school","km":1.53,"d":0.01381},{"n":"Centro 1 (Pob.) Barangay Hall","p":[17.607775,121.727533],"cat":"hall","km":1.63,"d":0.01478},{"n":"Tanza Barangay Hall","p":[17.627493,121.736519],"cat":"hall","km":1.69,"d":0.01582},{"n":"Centro 9 (Pob.) Barangay Hall","p":[17.607488,121.729395],"cat":"hall","km":1.74,"d":0.01583},{"n":"Bagay Elementary School","p":[17.632815,121.70975],"cat":"school","km":1.81,"d":0.01665},{"n":"Bagay Barangay Hall","p":[17.630928,121.70814],"cat":"hall","km":1.8,"d":0.01672},{"n":"Atulayan Norte Barangay Hall","p":[17.638878,121.717748],"cat":"hall","km":1.99,"d":0.01793},{"n":"Tuguegarao Northeast CS","p":[17.630078,121.738715],"cat":"school","km":2.02,"d":0.0189},{"n":"Pallua Norte Barangay Hall","p":[17.626644,121.702937],"cat":"hall","km":2.09,"d":0.01967},{"n":"Tuguegarao City West High School","p":[17.627434,121.702537],"cat":"school","km":2.16,"d":0.02028},{"n":"Annafunan East Barangay Hall","p":[17.643038,121.721349],"cat":"hall","km":2.4,"d":0.02161},{"n":"Caggay Barangay Hall","p":[17.632579,121.740646],"cat":"hall","km":2.34,"d":0.0218},{"n":"Annafunan Integrated School","p":[17.643222,121.720271],"cat":"school","km":2.43,"d":0.02185},{"n":"Pallua Sur Barangay Hall","p":[17.624062,121.699777],"cat":"hall","km":2.36,"d":0.02228},{"n":"Annafunan West Barangay Hall","p":[17.644101,121.719584],"cat":"hall","km":2.53,"d":0.02278},{"n":"Cataggaman Nuevo Barangay Hall","p":[17.600767,121.711217],"cat":"hall","km":2.56,"d":0.02327},{"n":"Cataggaman Nuevo ES","p":[17.600886,121.710912],"cat":"school","km":2.57,"d":0.02331},{"n":"Pallua Elementary School","p":[17.620729,121.698399],"cat":"school","km":2.49,"d":0.02352},{"n":"Capatan Barangay Hall","p":[17.615822,121.745651],"cat":"hall","km":2.59,"d":0.0244},{"n":"Cataggaman National High School","p":[17.600533,121.707473],"cat":"school","km":2.78,"d":0.0254},{"n":"Tuguegarao City Airport","p":[17.643142,121.735294],"cat":"gov","km":2.8,"d":0.0255},{"n":"Leonarda Barangay Hall","p":[17.640127,121.739529],"cat":"hall","km":2.79,"d":0.02569},{"n":"Bureau of Jail Management and Penology - Cataggaman","p":[17.60022,121.706057],"cat":"gov","km":2.9,"d":0.02648},{"n":"Linao East Barangay Hall","p":[17.648058,121.724616],"cat":"hall","km":2.97,"d":0.02676},{"n":"Pengue-Ruyu Elementary School","p":[17.642496,121.739522],"cat":"school","km":2.99,"d":0.02746},{"n":"Capatan Integrated School","p":[17.617519,121.749856],"cat":"school","km":2.99,"d":0.02822},{"n":"Cataggamman ES","p":[17.596815,121.707268],"cat":"school","km":3.15,"d":0.02864},{"n":"Buntun Elementary School","p":[17.61477,121.693694],"cat":"school","km":3.08,"d":0.02899},{"n":"Linao West Barangay Hall","p":[17.650259,121.717186],"cat":"hall","km":3.24,"d":0.02921},{"n":"Cataggaman Pardo Elementary School","p":[17.599797,121.701925],"cat":"school","km":3.21,"d":0.02945},{"n":"Buntun Barangay Hall","p":[17.610141,121.693311],"cat":"hall","km":3.28,"d":0.03075},{"n":"Cataggaman Pardo Barangay Hall","p":[17.597499,121.702345],"cat":"hall","km":3.37,"d":0.03091},{"n":"Libag ES","p":[17.608352,121.751428],"cat":"school","km":3.45,"d":0.03229},{"n":"Larion Bajo Barangay Hall","p":[17.624606,121.754271],"cat":"hall","km":3.45,"d":0.03252},{"n":"Linao ES","p":[17.653773,121.725383],"cat":"school","km":3.61,"d":0.03252},{"n":"Larion Bajo ES","p":[17.623706,121.755084],"cat":"school","km":3.53,"d":0.03326},{"n":"Libag Norte Barangay Hall","p":[17.607094,121.752171],"cat":"hall","km":3.58,"d":0.03349},{"n":"Linao National High School","p":[17.654934,121.725836],"cat":"school","km":3.75,"d":0.03373},{"n":"Cataggaman Viejo Barangay Hall","p":[17.591382,121.705725],"cat":"hall","km":3.76,"d":0.03413},{"n":"Linao Norte Barangay Hall","p":[17.658046,121.727871],"cat":"hall","km":4.12,"d":0.03709},{"n":"Larion Alto ES","p":[17.628496,121.759695],"cat":"school","km":4.08,"d":0.03844},{"n":"Larion Alto Barangay Hall","p":[17.629061,121.76076],"cat":"hall","km":4.2,"d":0.0396},{"n":"Libag Sur Barangay Hall","p":[17.602901,121.756964],"cat":"hall","km":4.25,"d":0.03966},{"n":"Gosi Norte Barangay Hall","p":[17.592712,121.759552],"cat":"hall","km":5.11,"d":0.04735},{"n":"Gosi Sur Barangay Hall","p":[17.581853,121.764223],"cat":"hall","km":6.28,"d":0.05795},{"n":"Gosi Elementary School","p":[17.581739,121.76478],"cat":"school","km":6.34,"d":0.05843},{"n":"Gosi National High School","p":[17.58156,121.770399],"cat":"school","km":6.79,"d":0.06278},{"n":"Tagga Barangay Hall","p":[17.577079,121.768707],"cat":"hall","km":7,"d":0.06448},{"n":"Tagga-Dadda ES","p":[17.575409,121.770103],"cat":"school","km":7.23,"d":0.06665},{"n":"Dadda Barangay Hall","p":[17.570001,121.774011],"cat":"hall","km":7.95,"d":0.07322},{"n":"Dadda Elementary School","p":[17.5648,121.778941],"cat":"school","km":8.73,"d":0.08038},{"n":"Namabbalan Norte Barangay Hall","p":[17.559338,121.781464],"cat":"hall","km":9.36,"d":0.08604},{"n":"Namabbalan Integrated School","p":[17.548286,121.78442],"cat":"school","km":10.49,"d":0.09622},{"n":"Namabbalan Sur Barangay Hall","p":[17.539166,121.787202],"cat":"hall","km":11.47,"d":0.10503}],"napLayers":[{"name":"LCP 1","color":"#f97316","pts":[{"n":"LCP 1 NAP 1","p":[17.6226037,121.7220016]},{"n":"LCP 1 NAP 2","p":[17.6254552,121.7193935]},{"n":"LCP 1 NAP 3","p":[17.6303022,121.7212431]},{"n":"LCP 1 NAP 4","p":[17.635082,121.720923]},{"n":"LCP 1 NAP 5","p":[17.6411944,121.7200713]},{"n":"LCP 1 NAP 6","p":[17.6494506,121.7195229]},{"n":"LCP 1 NAP 7","p":[17.6532947,121.7251559]},{"n":"LCP 1 NAP 8","p":[17.6594691,121.7306829]}]},{"name":"LCP 2","color":"#a78bfa","pts":[{"n":"LCP 2 NAP 1","p":[17.6188767,121.725391]},{"n":"LCP 2 NAP 2","p":[17.6131768,121.7186379]},{"n":"LCP 2 NAP 3","p":[17.6110574,121.7154995]},{"n":"LCP 2 NAP 4","p":[17.6134306,121.6935428]},{"n":"LCP 2 NAP 5","p":[17.6210449,121.6979733]},{"n":"LCP 2 NAP 6","p":[17.6237518,121.6997515]},{"n":"LCP 2 NAP 7","p":[17.6268298,121.7018654]},{"n":"LCP 2 NAP 8","p":[17.632433,121.7076917]}]},{"name":"LCP 3","color":"#34d399","pts":[{"n":"LCP 3 NAP 1","p":[17.6131587,121.7261631]},{"n":"LCP 3 NAP 2","p":[17.6131083,121.7291214]},{"n":"LCP 3 NAP 3","p":[17.6091236,121.7289883]},{"n":"LCP 3 NAP 4","p":[17.6007919,121.7110673]},{"n":"LCP 3 NAP 5","p":[17.5969713,121.7065572]},{"n":"LCP 3 NAP 6","p":[17.6000919,121.706155]},{"n":"LCP 3 NAP 7","p":[17.5980058,121.7025368]},{"n":"LCP 3 NAP 8","p":[17.5913329,121.7056404]}]},{"name":"LCP 4","color":"#fbbf24","pts":[{"n":"LCP 4 NAP 1","p":[17.6212712,121.7296445]},{"n":"LCP 4 NAP 2","p":[17.624625,121.7332934]},{"n":"LCP 4 NAP 3","p":[17.6297823,121.7388864]},{"n":"LCP 4 NAP 4","p":[17.6247484,121.7681231]},{"n":"LCP 4 NAP 5","p":[17.6243646,121.75426]},{"n":"LCP 4 NAP 6","p":[17.6136276,121.7516754]},{"n":"LCP 4 NAP 7","p":[17.6172094,121.7496193]}]},{"name":"LCP 5","color":"#60a5fa","pts":[{"n":"LCP 5 NAP 1","p":[17.6070158,121.7520395]},{"n":"LCP 5 NAP 2","p":[17.6019393,121.7561607]},{"n":"LCP 5 NAP 3","p":[17.592599,121.7593264]},{"n":"LCP 5 NAP 4","p":[17.5815441,121.7642318]},{"n":"LCP 5 NAP 5","p":[17.5753089,121.7695755]},{"n":"LCP 5 NAP 6","p":[17.5700655,121.7741663]},{"n":"LCP 5 NAP 7","p":[17.5588438,121.7810073]},{"n":"LCP 5 NAP 8","p":[17.5389898,121.7868673]}]},{"name":"LCP 7","color":"#f472b6","pts":[{"n":"LCP 7 NAP 1","p":[17.6305309,121.7338649]},{"n":"LCP 7 NAP 2","p":[17.6432145,121.7395823]},{"n":"LCP 7 NAP 3","p":[17.6542181,121.7444898]},{"n":"LCP 7 NAP 4","p":[17.6562101,121.7454875]},{"n":"LCP 7 NAP 5","p":[17.6587713,121.746644]},{"n":"LCP 7 NAP 6","p":[17.665309,121.7496259]},{"n":"LCP 7 NAP 7","p":[17.6716785,121.7527953]},{"n":"LCP 7 NAP 8","p":[17.6746882,121.7532173]}]}],"fiber":[{"id":1,"n":"5222","kind":"main","km":5.22,"parentId":null,"attachT":0,"junction":[17.6214374,121.7219058],"wave":"main","c":[[17.6214374,121.7219058],[17.6213287,121.7219943],[17.6218735,121.722678],[17.617684,121.7264686],[17.6179814,121.7277626],[17.6180494,121.7280196],[17.6184902,121.728404],[17.6249165,121.7312717],[17.6358557,121.7362569],[17.6447901,121.7402693],[17.6539771,121.7444573],[17.6673829,121.7505558],[17.6719355,121.7528999],[17.6748596,121.7533615]]},{"id":2,"n":"5352m","kind":"main","km":5.35,"parentId":1,"attachT":0.0144,"junction":[17.6218597,121.7226905],"wave":"main","c":[[17.6218597,121.7226905],[17.621849,121.7226775],[17.6254668,121.7194154],[17.626058,121.7200715],[17.6264882,121.7207973],[17.6267384,121.7218629],[17.6294361,121.7213504],[17.6319256,121.7210948],[17.6336999,121.7209344],[17.6362807,121.7209514],[17.6372853,121.7209814],[17.6401459,121.7202975],[17.6412741,121.7201052],[17.6443114,121.7196296],[17.6457967,121.7186816],[17.646695,121.7185764],[17.6494738,121.719553],[17.6528093,121.720887],[17.6530668,121.7210408],[17.6531688,121.7213121],[17.6531219,121.7217647],[17.6535536,121.7287422],[17.6594828,121.730678]]},{"id":8,"n":"19436m","kind":"green","km":19.44,"parentId":1,"attachT":0.1699,"junction":[17.6214909,121.7297431],"wave":"se","c":[[17.6214909,121.7297431],[17.6214709,121.7297925],[17.6252736,121.7339119],[17.6275068,121.736409],[17.632559,121.7418706],[17.6335147,121.7428827],[17.6337174,121.7433438],[17.6337963,121.7440108],[17.6339191,121.7462911],[17.6340129,121.7465901],[17.6342106,121.7469674],[17.6363082,121.7494904],[17.6365117,121.7498492],[17.6365979,121.7501915],[17.6366065,121.7506166],[17.6365283,121.751792],[17.6368969,121.752773],[17.6385598,121.755884],[17.6392389,121.7565505],[17.6397469,121.7566917],[17.641149,121.7568815],[17.6414812,121.7570038],[17.6420953,121.7575256],[17.6440336,121.759242],[17.6444188,121.7598253],[17.6446581,121.7601084],[17.6449487,121.760205],[17.6450607,121.7602231],[17.6448444,121.760362],[17.6447056,121.7605196],[17.644546,121.7607748],[17.6444069,121.7612069],[17.6441564,121.7616066],[17.6424696,121.7637076],[17.6422717,121.7641073],[17.642172,121.7643855],[17.6418284,121.765783],[17.641704,121.7662097],[17.6413967,121.7666216],[17.6409518,121.7669764],[17.6405044,121.7670855],[17.6381989,121.7669219],[17.6373221,121.7670042],[17.6366461,121.7675352],[17.6341779,121.7713983],[17.6338752,121.7716792],[17.6320185,121.7733588],[17.631582,121.7738168],[17.6306216,121.7749467],[17.6300773,121.7754911],[17.6294604,121.7757904],[17.6291411,121.7755814],[17.628237,121.7743735],[17.6253932,121.7687698],[17.6234817,121.7658304],[17.6170257,121.7559905],[17.6149152,121.7527562],[17.614012,121.7517702],[17.6121607,121.7509335],[17.6100329,121.750377],[17.6096675,121.7503809],[17.6093559,121.7504264],[17.6090969,121.7505151],[17.6089182,121.7506071],[17.6086344,121.7508433],[17.6066792,121.7523709],[17.6043705,121.7542222],[17.601754,121.75637],[17.6007758,121.7571106],[17.5995409,121.7575385],[17.5930194,121.759348],[17.5914126,121.7595998],[17.590145,121.7599692],[17.5889898,121.7604039],[17.5840319,121.7623647],[17.5821012,121.7638041],[17.581694,121.7641635],[17.573272,121.7714821],[17.5681741,121.7758593],[17.5672885,121.7766475],[17.5651096,121.7793033],[17.5646873,121.7797516],[17.5643242,121.7799085],[17.5513602,121.7830888],[17.5446417,121.7847729],[17.5434862,121.7851322],[17.5391552,121.7870301]]},{"id":3,"n":"2232m","kind":"branch","km":2.23,"parentId":8,"attachT":0.4043,"junction":[17.6250681,121.7682699],"wave":"se","c":[[17.6250681,121.7682699],[17.6250603,121.7682755],[17.6263153,121.7679029],[17.6270487,121.7676742],[17.6276344,121.7675638],[17.6282473,121.7674296],[17.6286509,121.7673563],[17.6291452,121.7672132],[17.6291991,121.767183],[17.6291979,121.7671339],[17.629138,121.7667399],[17.6289521,121.7660736],[17.6288129,121.7656158],[17.6287027,121.7651027],[17.6286372,121.7647716],[17.628614,121.7645132],[17.6286125,121.7641873],[17.6286249,121.7637967],[17.6287221,121.762809],[17.6287738,121.7620921],[17.628818,121.7615038],[17.6288802,121.760786],[17.6289115,121.7602481],[17.628892,121.7598302],[17.6288797,121.7593312],[17.6288027,121.75898],[17.6287931,121.7588917],[17.6288013,121.7588284],[17.6288608,121.7586256],[17.6288496,121.7584909],[17.6287867,121.758192],[17.6287656,121.7581073],[17.6287378,121.7580547],[17.6287011,121.7580296],[17.6286424,121.7580012],[17.6284019,121.7579749],[17.6281931,121.757955],[17.6280447,121.7579325],[17.6279036,121.7579098],[17.6274448,121.7578087],[17.6268828,121.7576713],[17.6264609,121.7575684],[17.626107,121.7574721],[17.6257645,121.7573957],[17.6254595,121.7573171],[17.6248229,121.7571689],[17.6245627,121.7570724],[17.6244068,121.7542347]]},{"id":5,"n":"1496m","kind":"branch","km":1.5,"parentId":8,"attachT":0.514,"junction":[17.6140218,121.7517809],"wave":"se","c":[[17.6140218,121.7517809],[17.6140288,121.7517739],[17.614109,121.7515239],[17.6141052,121.7514099],[17.6138067,121.750493],[17.6130268,121.7482568],[17.612434,121.7466705],[17.6157898,121.7450603],[17.6160284,121.7456196],[17.6162867,121.7463539],[17.6167996,121.7478488],[17.6172803,121.7496099]]},{"id":0,"n":"6595m","kind":"main","km":6.59,"parentId":1,"attachT":0.0933,"junction":[17.617684,121.7264686],"wave":"main","c":[[17.617684,121.7264686],[17.6176213,121.7264069],[17.6132301,121.7262063],[17.613333,121.7163926],[17.6137146,121.6979338],[17.6134471,121.6935429],[17.6143419,121.6938207],[17.6149986,121.6941515],[17.6153766,121.6943524],[17.6155893,121.6944758],[17.6161903,121.6949174],[17.6170837,121.6955833],[17.6177489,121.696074],[17.617947,121.6962087],[17.6193768,121.6969548],[17.6199811,121.6973133],[17.6204352,121.6976072],[17.6217297,121.6984019],[17.6226102,121.6989227],[17.6229687,121.6991487],[17.6246881,121.7004243],[17.6250838,121.7007126],[17.6268676,121.7018748],[17.6273976,121.7022073],[17.627704,121.7024287],[17.6279963,121.7025825],[17.6291266,121.7031346],[17.6295322,121.7033641],[17.6298071,121.7035252],[17.6300949,121.7037484],[17.630347,121.7040179],[17.6305887,121.7043815],[17.6324776,121.7076988]]},{"id":9,"n":"4096m","kind":"green","km":4.1,"parentId":0,"attachT":0.0754,"junction":[17.6132301,121.7262063],"wave":"sw","c":[[17.6132301,121.7262063],[17.6132276,121.726211],[17.6131473,121.729134],[17.6091828,121.7290178],[17.6091295,121.7175472],[17.604582,121.7149682],[17.6040167,121.714761],[17.6007099,121.7109875],[17.5969312,121.7064981],[17.595082,121.7042571],[17.5981069,121.7025376]]},{"id":6,"n":"353m","kind":"branch","km":0.35,"parentId":9,"attachT":0.8419,"junction":[17.5970046,121.7065853],"wave":"sw","c":[[17.5970024,121.7065873],[17.597958,121.7064871],[17.5988236,121.7063706],[17.6001649,121.7061656]]},{"id":4,"n":"254m","kind":"branch","km":0.25,"parentId":0,"attachT":0.2525,"junction":[17.6133584,121.715162],"wave":"sw","c":[[17.6133584,121.715162],[17.6133742,121.7151624],[17.6111013,121.7155023]]},{"id":7,"n":"475m","kind":"branch","km":0.47,"parentId":9,"attachT":0.9144,"junction":[17.5950896,121.7042663],"wave":"sw","c":[[17.5950896,121.7042663],[17.5950682,121.7042857],[17.5950205,121.7049808],[17.593184,121.705372],[17.5925769,121.7054846],[17.5914533,121.7056633]]}],"stats":{"sites":93,"halls":44,"schools":32,"other":17,"km":45.5,"lcps":6,"naps":47}};
+
+const elSites = document.getElementById('st-sites');
+const elHalls = document.getElementById('st-halls');
+const elSchools = document.getElementById('st-schools');
+const elGov = document.getElementById('st-gov');
+const elKm = document.getElementById('st-km');
+const elNaps = document.getElementById('st-naps');
+
+function setStats(sites, halls, schools, gov, km, naps) {
+  elSites.textContent = Math.round(sites);
+  elHalls.textContent = Math.round(halls);
+  elSchools.textContent = Math.round(schools);
+  elGov.textContent = Math.round(gov);
+  elKm.textContent = km.toFixed(1) + ' km';
+  elNaps.textContent = Math.round(naps);
+}
+setStats(DATA.stats.sites, DATA.stats.halls, DATA.stats.schools, DATA.stats.other, DATA.stats.km, DATA.stats.naps);
+
+// Smooth fractional-zoom Leaflet map
+const map = L.map('map', {
+  zoomControl: false,
+  attributionControl: false,
+  zoomSnap: 0.1,
+  zoomDelta: 0.5,
+  wheelPxPerZoomLevel: 85,
+  preferCanvas: false,
+}).setView(DATA.hub.p, 13);
+
+// Dedicated layered panes for crisp 3-stroke optical fiber rendering (underneath markerPane=600)
+map.createPane('fiberHaloPane').style.zIndex = 410;
+map.getPane('fiberHaloPane').style.pointerEvents = 'none';
+map.createPane('fiberCorePane').style.zIndex = 420;
+map.createPane('fiberFilamentPane').style.zIndex = 430;
+map.getPane('fiberFilamentPane').style.pointerEvents = 'none';
+
+const zoomLevelEl = document.getElementById('zoomLevel');
+function updateZoomReadout() {
+  zoomLevelEl.textContent = map.getZoom().toFixed(1) + '×';
+}
+map.on('zoomend zoom', updateZoomReadout);
+
+// Zero-API-key dark basemaps
+const nightSatellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  maxNativeZoom: 18,
+  maxZoom: 19,
+  className: 'sat-night-tiles',
+});
+const darkNoLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+  maxNativeZoom: 16,
+  maxZoom: 19,
+  className: 'dark-clean-tiles',
+});
+const darkWithLabels = L.layerGroup([
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+    maxNativeZoom: 16,
+    maxZoom: 19,
+    className: 'dark-clean-tiles',
+  }),
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+    maxNativeZoom: 16,
+    maxZoom: 19,
+  }),
+]);
+const osmDark = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  className: 'osm-night-tiles',
+});
+
+nightSatellite.addTo(map);
+
+// ---------- Hub Marker (DICT Regional Office 2) ----------
+function makeHubIcon(dim) {
+  return L.divIcon({
+    className: '',
+    html: '<div class="hub-wrap' + (dim ? ' dim' : '') + '"><div class="hub-ring"></div><div class="hub-ring r2"></div><div class="hub-ring r3"></div><div class="hub-core"></div></div>',
+    iconSize: [76, 76],
+    iconAnchor: [38, 38],
+  });
+}
+
+const hubMarker = L.marker(DATA.hub.p, { icon: makeHubIcon(false), zIndexOffset: 1000 })
+  .bindPopup('<b>DICT Regional Office 2</b><br>NFB Phase 2 Origin Hub<br><small>17.6214°N, 121.7219°E</small>');
+const hubLayer = L.layerGroup([hubMarker]);
+
+// ---------- Beneficiary Sites (color-coded by category, click any dot to smooth-zoom!) ----------
+const jumpSelect = document.getElementById('jumpSelect');
+const CAT_META = {
+  hall:   { label: 'Barangay Hall',      tag: '[Hall]',   color: '#22d3ee', stroke: '#cffafe', glow: 'site-glow-hall' },
+  school: { label: 'School / University', tag: '[School]', color: '#fbbf24', stroke: '#fef3c7', glow: 'site-glow-school' },
+  gov:    { label: 'Gov / Public',        tag: '[Gov]',    color: '#e879f9', stroke: '#fae8ff', glow: 'site-glow-gov' },
+};
+
+const hallMarkers = [];
+const schoolMarkers = [];
+const govMarkers = [];
+
+const siteEntries = DATA.sites.map((s, idx) => {
+  const cm = CAT_META[s.cat];
+  const marker = L.circleMarker(s.p, {
+    radius: 5.8,
+    color: cm.stroke,
+    weight: 1.5,
+    fillColor: cm.color,
+    fillOpacity: 0.9,
+    opacity: 0.98,
+    className: cm.glow,
+  })
+    .bindTooltip('<span style="color:' + cm.color + '">●</span> ' + s.n + ' <small>(' + cm.label + ')</small>', { direction: 'top' })
+    .bindPopup('<b>' + s.n + '</b><br><span style="color:' + cm.color + '">● ' + cm.label + '</span><br><small>' + s.km + ' km from DICT Regional Office 2</small>');
+
+  marker.on('click', () => {
+    map.flyTo(s.p, Math.max(map.getZoom(), 16.2), { duration: 1.2 });
+  });
+
+  if (s.cat === 'hall') hallMarkers.push(marker);
+  else if (s.cat === 'school') schoolMarkers.push(marker);
+  else govMarkers.push(marker);
+
+  const opt = document.createElement('option');
+  opt.value = String(idx);
+  opt.textContent = cm.tag + ' ' + s.n;
+  jumpSelect.appendChild(opt);
+  return { site: s, marker, cm };
+});
+
+const hallLayer = L.layerGroup(hallMarkers);
+const schoolLayer = L.layerGroup(schoolMarkers);
+const govLayer = L.layerGroup(govMarkers);
+
+jumpSelect.addEventListener('change', () => {
+  const val = jumpSelect.value;
+  if (!val) return;
+  if (val === 'HUB') {
+    map.flyTo(DATA.hub.p, 16.5, { duration: 1.5 });
+    hubMarker.openPopup();
+    return;
+  }
+  const idx = Number(val);
+  const entry = siteEntries[idx];
+  if (entry) {
+    setActiveCategory('all', false);
+    map.flyTo(entry.site.p, 16.5, { duration: 1.5 });
+    entry.marker.openPopup();
+  }
+});
+
+// Interactive Category Filter (click bottom stat chips to spotlight Barangay Halls / Schools / Gov)
+let activeCategory = 'all';
+function updateChipHighlight(cat) {
+  ['all', 'hall', 'school', 'gov'].forEach(c => {
+    const el = document.getElementById('chip-' + c);
+    if (!el) return;
+    el.classList.toggle('active-cat', c === cat);
+    el.classList.toggle('dimmed', cat !== 'all' && c !== cat && c !== 'all');
+  });
+}
+
+function setActiveCategory(cat, fly = true) {
+  if (playing) return;
+  activeCategory = (activeCategory === cat && cat !== 'all') ? 'all' : cat;
+  updateChipHighlight(activeCategory);
+
+  [hallLayer, schoolLayer, govLayer].forEach(l => { if (!map.hasLayer(l)) l.addTo(map); });
+
+  const matchedPts = [];
+  siteEntries.forEach(({ site, marker, cm }) => {
+    const match = activeCategory === 'all' || site.cat === activeCategory;
+    if (match) {
+      marker.setStyle({
+        opacity: 0.98,
+        fillOpacity: 0.92,
+        radius: activeCategory === 'all' ? 5.8 : 7.5,
+      });
+      matchedPts.push(site.p);
+      if (activeCategory !== 'all') addRipple(site.p, cm.color);
+    } else {
+      marker.setStyle({ opacity: 0.14, fillOpacity: 0.08, radius: 4 });
+    }
+  });
+
+  if (fly && matchedPts.length > 0) {
+    const b = L.latLngBounds(matchedPts.concat([DATA.hub.p])).pad(0.1);
+    map.flyToBounds(b, { duration: 1.2 });
+  }
+}
+
+['all', 'hall', 'school', 'gov'].forEach(cat => {
+  const el = document.getElementById('chip-' + cat);
+  if (el) el.addEventListener('click', () => setActiveCategory(cat, true));
+});
+
+// ---------- Fiber Routes (3-layer optical fiber + topological junction tree) ----------
+const fiberPalette = {
+  main:   { halo: '#ff2e63', core: '#ff3b6b', filament: '#ffe4ec', w: [11, 4.2, 1.3], coreOp: 0.96, filOp: 0.92 },
+  green:  { halo: '#10b981', core: '#22e59b', filament: '#d1fae5', w: [9.5, 3.5, 1.1], coreOp: 0.95, filOp: 0.90 },
+  branch: { halo: '#f97316', core: '#fb923c', filament: '#fef3c7', w: [8.5, 3.0, 1.0], coreOp: 0.95, filOp: 0.90 },
+};
+
+function precomputeLengths(coords) {
+  const cum = [0];
+  let total = 0;
+  for (let i = 1; i < coords.length; i++) {
+    total += Math.hypot(coords[i][0] - coords[i - 1][0], coords[i][1] - coords[i - 1][1]);
+    cum.push(total);
+  }
+  return { cum, total };
+}
+
+function slicePolyline(coords, lens, frac) {
+  if (frac <= 0 || !coords || coords.length < 2) return [];
+  if (frac >= 1) return coords;
+  const target = frac * lens.total;
+  const out = [coords[0]];
+  for (let i = 1; i < coords.length; i++) {
+    if (lens.cum[i] <= target) {
+      out.push(coords[i]);
+    } else {
+      const segLen = lens.cum[i] - lens.cum[i - 1];
+      const u = segLen > 0 ? (target - lens.cum[i - 1]) / segLen : 0;
+      out.push([
+        coords[i - 1][0] + (coords[i][0] - coords[i - 1][0]) * u,
+        coords[i - 1][1] + (coords[i][1] - coords[i - 1][1]) * u,
+      ]);
+      break;
+    }
+  }
+  return out;
+}
+
+const fiberLines = DATA.fiber.map(f => {
+  const pal = fiberPalette[f.kind];
+  const [wh, wc, wf] = pal.w;
+  const common = { lineCap: 'round', lineJoin: 'round', smoothFactor: 0.5 };
+  const halo = L.polyline(f.c, { ...common, pane: 'fiberHaloPane', color: pal.halo, weight: wh, opacity: 0.24, interactive: false });
+  const core = L.polyline(f.c, { ...common, pane: 'fiberCorePane', color: pal.core, weight: wc, opacity: pal.coreOp })
+    .bindTooltip(f.n + ' · ' + f.km + ' km (' + f.kind + ')', { sticky: true });
+  const filament = L.polyline(f.c, { ...common, pane: 'fiberFilamentPane', color: pal.filament, weight: wf, opacity: pal.filOp, interactive: false });
+  return { meta: f, pal, halo, core, filament, lens: precomputeLengths(f.c) };
+});
+const fiberById = new Map(fiberLines.map(x => [x.meta.id, x]));
+const fiberLayer = L.layerGroup(fiberLines.flatMap(x => [x.halo, x.core, x.filament]));
+
+function updateFiberWeights() {
+  const s = Math.max(0.85, Math.min(1.45, 0.85 + (map.getZoom() - 12) * 0.12));
+  fiberLines.forEach(({ meta, halo, core, filament }) => {
+    const [wh, wc, wf] = fiberPalette[meta.kind].w;
+    halo.setStyle({ weight: +(wh * s).toFixed(2) });
+    core.setStyle({ weight: +(wc * s).toFixed(2) });
+    filament.setStyle({ weight: +(wf * s).toFixed(2) });
+  });
+}
+map.on('zoomend', updateFiberWeights);
+
+// ---------- NAPs / LCPs ----------
+const napLayer = L.layerGroup(
+  DATA.napLayers.flatMap(l =>
+    l.pts.map(p =>
+      L.circleMarker(p.p, {
+        radius: 3.5,
+        color: l.color,
+        weight: 1,
+        fillColor: l.color,
+        fillOpacity: 0.72,
+      }).bindTooltip(p.n + ' (' + l.name + ')', { direction: 'top' })
+    )
+  )
+);
+
+// Dynamic spotlight overlay layer (labels, ripples, moving light pulses)
+const fxLayer = L.layerGroup().addTo(map);
+
+const siteBounds = L.latLngBounds(DATA.sites.map(s => s.p).concat([DATA.hub.p])).pad(0.08);
+
+const baseMaps = {
+  '<b>Night Satellite (Cinema Default)</b>': nightSatellite,
+  '<b>Dark Minimal (No Labels)</b>': darkNoLabels,
+  '<b>Dark Reference (Labels)</b>': darkWithLabels,
+  '<b>Dark Roads (OSM)</b>': osmDark,
+};
+const overlays = {
+  '<b>DICT Regional Office 2 (Hub)</b>': hubLayer,
+  '<b>Fiber Routes (10 · 45.5 km)</b>': fiberLayer,
+  '<span style="color:#22d3ee">●</span> <b>Barangay Halls (44)</b>': hallLayer,
+  '<span style="color:#fbbf24">●</span> <b>Schools / CSU (32)</b>': schoolLayer,
+  '<span style="color:#e879f9">●</span> <b>Gov / Public (17)</b>': govLayer,
+  '<b>Distribution NAPs (47 · 6 LCPs)</b>': napLayer,
+};
+
+hubLayer.addTo(map);
+fiberLayer.addTo(map);
+hallLayer.addTo(map);
+schoolLayer.addTo(map);
+govLayer.addTo(map);
+L.control.layers(baseMaps, overlays, { collapsed: false, position: 'bottomright' }).addTo(map);
+
+map.fitBounds(siteBounds, { animate: false });
+updateFiberWeights();
+updateZoomReadout();
+
+// Zoom dock controls
+document.getElementById('zIn').addEventListener('click', () => map.zoomIn(0.8));
+document.getElementById('zOut').addEventListener('click', () => map.zoomOut(0.8));
+document.getElementById('zHub').addEventListener('click', () => map.flyTo(DATA.hub.p, 16.5, { duration: 1.4 }));
+document.getElementById('zFit').addEventListener('click', () => map.flyToBounds(siteBounds, { duration: 1.4 }));
+
+// Populate official logos in Finale Card if served from the stage app
+const finaleLogosEl = document.getElementById('finaleLogos');
+if (location.protocol !== 'file:') {
+  ['dict.png', 'eLGU.png', 'bagong_pilipinas.png', 'arta.png', 'dilg.png', 'dti.png', 'psa.png'].forEach(file => {
+    const img = document.createElement('img');
+    img.src = 'assets/' + file;
+    img.alt = file;
+    img.onerror = () => img.remove();
+    finaleLogosEl.appendChild(img);
+  });
+}
+
+// ---------- Cinematic Audio Engine + Local Voice Studio Support ----------
+let soundEnabled = true;
+let audioCtx = null;
+let voiceAudio = null;
+let voiceBlobUrl = null;
+let ambientNodes = [];
+
+const audioBtn = document.getElementById('audioBtn');
+audioBtn.addEventListener('click', () => {
+  soundEnabled = !soundEnabled;
+  audioBtn.textContent = soundEnabled ? '🔊 Sound: ON' : '🔇 Sound: OFF';
+  if (!soundEnabled) stopAllAudio();
+});
+
+const voiceBtn = document.getElementById('voiceBtn');
+const voiceFile = document.getElementById('voiceFile');
+voiceBtn.addEventListener('click', () => voiceFile.click());
+voiceFile.addEventListener('change', () => {
+  const file = voiceFile.files && voiceFile.files[0];
+  if (!file) return;
+  if (voiceBlobUrl) URL.revokeObjectURL(voiceBlobUrl);
+  voiceBlobUrl = URL.createObjectURL(file);
+  voiceAudio = new Audio(voiceBlobUrl);
+  voiceBtn.textContent = '🎙 ' + file.name.slice(0, 16);
+  voiceBtn.classList.add('active');
+});
+
+// Auto-detect voiceover placed in liveboard-ultra7122026/public/audio/voiceover.(mp3|wav) or local ./voiceover.wav
+async function detectServerVoiceover() {
+  if (voiceAudio) return;
+  if (location.protocol === 'file:') {
+    const localProbe = new Audio('voiceover.wav');
+    localProbe.addEventListener('canplaythrough', () => {
+      if (!voiceAudio) {
+        voiceAudio = localProbe;
+        voiceBtn.textContent = '🎙 Voiceover Ready';
+        voiceBtn.classList.add('active');
+      }
+    }, { once: true });
+    localProbe.preload = 'auto';
+    return;
+  }
+  for (const candidate of ['audio/voiceover.mp3', 'audio/voiceover.wav', 'audio/voiceover.m4a']) {
+    try {
+      const res = await fetch(candidate, { method: 'HEAD' });
+      if (res.ok) {
+        voiceAudio = new Audio(candidate);
+        voiceAudio.preload = 'auto';
+        voiceBtn.textContent = '🎙 Voiceover Ready';
+        voiceBtn.classList.add('active');
+        break;
+      }
+    } catch {}
+  }
+}
+detectServerVoiceover();
+
+function ensureAudioCtx() {
+  if (!soundEnabled) return null;
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return null;
+  if (!audioCtx) audioCtx = new Ctx();
+  if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+  return audioCtx;
+}
+
+function stopAllAudio() {
+  ambientNodes.forEach(n => { try { n.stop(); } catch {} });
+  ambientNodes = [];
+  if (voiceAudio) {
+    try { voiceAudio.pause(); voiceAudio.currentTime = 0; } catch {}
+  }
+}
+
+function startCinemaScore(hasVoice) {
+  const ctx = ensureAudioCtx();
+  if (!ctx) return;
+  stopAllAudio();
+  const now = ctx.currentTime;
+  const master = ctx.createGain();
+  master.gain.setValueAtTime(0.0001, now);
+  master.gain.exponentialRampToValueAtTime(hasVoice ? 0.065 : 0.14, now + 2.2);
+  master.gain.setValueAtTime(hasVoice ? 0.065 : 0.14, now + 36);
+  master.gain.exponentialRampToValueAtTime(0.0001, now + 42.5);
+  master.connect(ctx.destination);
+
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(280, now);
+  filter.frequency.linearRampToValueAtTime(720, now + 24);
+  filter.frequency.linearRampToValueAtTime(340, now + 41);
+  filter.connect(master);
+
+  // Warm cinema pad chord (D2, A2, D3, F#3)
+  [73.42, 110.0, 146.83, 185.0].forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    osc.type = i < 2 ? 'sawtooth' : 'triangle';
+    osc.frequency.setValueAtTime(freq, now);
+    osc.detune.setValueAtTime((i - 1.5) * 6, now);
+    const g = ctx.createGain();
+    g.gain.value = i === 0 ? 0.45 : 0.25;
+    osc.connect(g);
+    g.connect(filter);
+    osc.start(now);
+    osc.stop(now + 43);
+    ambientNodes.push(osc);
+  });
+}
+
+function playIgnitionBoom() {
+  const ctx = ensureAudioCtx();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(140, now);
+  osc.frequency.exponentialRampToValueAtTime(36, now + 1.1);
+  g.gain.setValueAtTime(0.32, now);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + 1.3);
+  osc.connect(g);
+  g.connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + 1.35);
+}
+
+function playChime(freq = 587.33, vol = 0.055) {
+  const ctx = ensureAudioCtx();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(freq, now);
+  g.gain.setValueAtTime(vol, now);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
+  osc.connect(g);
+  g.connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + 0.6);
+}
+
+// ---------- Visual Effects Helpers ----------
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const captionEl = document.getElementById('caption');
+const progressEl = document.getElementById('cineProgress');
+const finaleCard = document.getElementById('finaleCard');
+
+function showCaption(text) {
+  captionEl.textContent = text;
+  captionEl.classList.add('show');
+}
+function hideCaption() {
+  captionEl.classList.remove('show');
+}
+
+function addSpotlight(latlng, title, sub, durationMs = 3600) {
+  const m = L.marker(latlng, {
+    interactive: false,
+    zIndexOffset: 900,
+    icon: L.divIcon({
+      className: '',
+      html: '<div class="spot-label">' + title + (sub ? '<small>' + sub + '</small>' : '') + '</div>',
+      iconSize: [0, 0],
+      iconAnchor: [-14, 18],
+    }),
+  }).addTo(fxLayer);
+  setTimeout(() => fxLayer.removeLayer(m), durationMs);
+}
+
+function addRipple(latlng, color = '#22d3ee') {
+  const m = L.marker(latlng, {
+    interactive: false,
+    zIndexOffset: 800,
+    icon: L.divIcon({
+      className: '',
+      html: '<div class="site-ripple" style="border-color:' + color + ';box-shadow:0 0 14px ' + color + '"></div>',
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+    }),
+  }).addTo(fxLayer);
+  setTimeout(() => fxLayer.removeLayer(m), 980);
+}
+
+let animRunId = 0;
+
+function setFiberProgress(fObj, frac) {
+  const pts = slicePolyline(fObj.meta.c, fObj.lens, frac);
+  fObj.halo.setLatLngs(pts);
+  fObj.core.setLatLngs(pts);
+  fObj.filament.setLatLngs(pts);
+  return pts.length ? pts[pts.length - 1] : null;
+}
+
+function waveKm(waveName) {
+  return fiberLines.filter(x => x.meta.wave === waveName).reduce((s, x) => s + x.meta.km, 0);
+}
+
+function animateWave(waveName, totalDurationMs, runId) {
+  const waveItems = fiberLines.filter(x => x.meta.wave === waveName);
+  if (!waveItems.length) return Promise.resolve(0);
+
+  const inWave = new Set(waveItems.map(x => x.meta.id));
+  const maxKm = Math.max(...waveItems.map(x => x.meta.km || 0.25), 0.25);
+  const rawTiming = new Map();
+
+  for (const item of waveItems) {
+    const durRaw = Math.max(0.35, Math.sqrt((item.meta.km || 0.25) / maxKm));
+    let startRaw = 0;
+    if (item.meta.parentId !== null && inWave.has(item.meta.parentId)) {
+      const pT = rawTiming.get(item.meta.parentId);
+      const tClamped = Math.min(0.999, Math.max(0, item.meta.attachT || 0));
+      const parentU = 1 - Math.cbrt(1 - tClamped);
+      startRaw = pT.startRaw + pT.durRaw * parentU;
+    }
+    rawTiming.set(item.meta.id, { startRaw, durRaw });
+  }
+
+  let maxEnd = 0;
+  for (const t of rawTiming.values()) maxEnd = Math.max(maxEnd, t.startRaw + t.durRaw);
+  const scale = totalDurationMs / (maxEnd || 1);
+
+  const schedule = waveItems.map(item => {
+    const t = rawTiming.get(item.meta.id);
+    return {
+      item,
+      startMs: t.startRaw * scale,
+      durMs: t.durRaw * scale,
+      started: false,
+      done: false,
+      head: null,
+    };
+  });
+
+  return new Promise(resolve => {
+    const t0 = performance.now();
+    function frame(now) {
+      if (runId !== animRunId) {
+        schedule.forEach(s => { if (s.head) { fxLayer.removeLayer(s.head); s.head = null; } });
+        resolve(0);
+        return;
+      }
+      const elapsed = now - t0;
+      let allDone = true;
+
+      for (const s of schedule) {
+        if (s.done) continue;
+        if (elapsed < s.startMs) { allDone = false; continue; }
+
+        if (!s.started) {
+          s.started = true;
+          if (s.item.meta.parentId !== null && s.item.meta.junction) {
+            addRipple(s.item.meta.junction, s.item.pal.core);
+          }
+          s.head = L.marker(s.item.meta.c[0], {
+            interactive: false,
+            zIndexOffset: 950,
+            icon: L.divIcon({
+              className: '',
+              html: '<div class="pulse-head" style="box-shadow:0 0 18px #ffffff, 0 0 30px ' + s.item.pal.core + '"></div>',
+              iconSize: [14, 14],
+              iconAnchor: [7, 7],
+            }),
+          }).addTo(fxLayer);
+        }
+
+        const u = Math.min(1, (elapsed - s.startMs) / (s.durMs || 1));
+        const eased = 1 - Math.pow(1 - u, 3);
+        const tip = setFiberProgress(s.item, eased);
+        if (tip && s.head) s.head.setLatLng(tip);
+
+        if (u >= 1) {
+          s.done = true;
+          setFiberProgress(s.item, 1);
+          if (s.head) { fxLayer.removeLayer(s.head); s.head = null; }
+        } else {
+          allDone = false;
+        }
+      }
+
+      if (!allDone && elapsed < totalDurationMs + 120) {
+        requestAnimationFrame(frame);
+      } else {
+        schedule.forEach(s => {
+          setFiberProgress(s.item, 1);
+          if (s.head) { fxLayer.removeLayer(s.head); s.head = null; }
+        });
+        resolve(waveKm(waveName));
+      }
+    }
+    requestAnimationFrame(frame);
+  });
+}
+
+function tweenKm(from, to, durationMs, runId) {
+  const start = performance.now();
+  function step(now) {
+    if (runId !== undefined && runId !== animRunId) return;
+    const t = Math.min((now - start) / durationMs, 1);
+    const val = from + (to - from) * (1 - Math.pow(1 - t, 3));
+    elKm.textContent = val.toFixed(1) + ' km';
+    if (t < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+// ---------- Choreographed 42-Second Zoom Cinematic ----------
+let playing = false;
+async function playCinematic() {
+  if (playing) return;
+  playing = true;
+  const runId = ++animRunId;
+
+  const btn = document.getElementById('cineBtn');
+  btn.disabled = true;
+  btn.textContent = '… PLAYING';
+  finaleCard.classList.remove('show');
+  fxLayer.clearLayers();
+  map.closePopup();
+
+  // Prepare layers
+  hubMarker.setIcon(makeHubIcon(false));
+  if (!map.hasLayer(hubLayer)) hubLayer.addTo(map);
+  if (!map.hasLayer(fiberLayer)) fiberLayer.addTo(map);
+  [hallLayer, schoolLayer, govLayer].forEach(l => { if (!map.hasLayer(l)) l.addTo(map); });
+  map.removeLayer(napLayer);
+
+  activeCategory = 'all';
+  updateChipHighlight('all');
+  siteEntries.forEach(({ marker }) => marker.setStyle({ opacity: 0, fillOpacity: 0, radius: 2 }));
+  fiberLines.forEach(f => setFiberProgress(f, 0));
+  setStats(0, 0, 0, 0, 0, 0);
+  progressEl.style.width = '0%';
+
+  // Start score & optional Local Voice Studio voiceover
+  if (soundEnabled) {
+    const hasVo = Boolean(voiceAudio);
+    startCinemaScore(hasVo);
+    if (voiceAudio) {
+      voiceAudio.currentTime = 0;
+      voiceAudio.play().catch(() => {});
+    }
+  }
+
+  // ===== ACT 1 (0:00 - 0:06): Ignition at DICT Regional Office 2 =====
+  map.flyTo(DATA.hub.p, 16.5, { duration: 2.2, easeLinearity: 0.2 });
+  showCaption('DICT Regional Office 2 — Origin Hub · Tuguegarao City');
+  progressEl.style.width = '10%';
+  await sleep(1600);
+  if (runId !== animRunId) return;
+  playIgnitionBoom();
+  addRipple(DATA.hub.p);
+  addSpotlight(DATA.hub.p, 'DICT Regional Office 2', 'NFB Phase 2 Origin Hub', 4400);
+  await sleep(3400);
+  if (runId !== animRunId) return;
+
+  // ===== ACT 2 (0:06 - 0:15): Main Line Backbone Surge (emerges from DICT R2) =====
+  progressEl.style.width = '28%';
+  map.flyTo([17.630, 121.724], 13.4, { duration: 2.0, easeLinearity: 0.25 });
+  showCaption('Energizing the Main Fiber Backbone outward from DICT Region 2…');
+  await sleep(900);
+  if (runId !== animRunId) return;
+
+  const mainKm = waveKm('main');
+  const mainPromise = animateWave('main', 3800, runId);
+  tweenKm(0, mainKm, 3800, runId);
+  playChime(440, 0.08);
+  await sleep(1300);
+  if (runId !== animRunId) return;
+  addSpotlight([17.62036, 121.72495], 'CSU — Andrews Campus', 'Connected via Main Line', 3200);
+  await sleep(1400);
+  if (runId !== animRunId) return;
+  addSpotlight([17.64314, 121.73529], 'Tuguegarao City Airport', 'North Corridor Backbone', 3200);
+  await mainPromise;
+  if (runId !== animRunId) return;
+  await sleep(1200);
+  if (runId !== animRunId) return;
+
+  // ===== ACT 3A (0:15 - 0:21): Downtown, Cataggaman & Southwest Branches =====
+  progressEl.style.width = '48%';
+  map.flyTo([17.608, 121.714], 13.8, { duration: 2.0, easeLinearity: 0.25 });
+  showCaption('Branching across Población, Cataggaman, Bagay & Buntun…');
+  await sleep(900);
+  if (runId !== animRunId) return;
+
+  const swKm = waveKm('sw');
+  const swPromise = animateWave('sw', 2800, runId);
+  tweenKm(mainKm, mainKm + swKm, 2800, runId);
+  playChime(523.25, 0.08);
+  await sleep(900);
+  if (runId !== animRunId) return;
+  addSpotlight([17.61294, 121.72952], "People's General Hospital", 'Public Health & Civic Hub', 3000);
+  await sleep(1200);
+  if (runId !== animRunId) return;
+  addSpotlight([17.60053, 121.70747], 'Cataggaman Schools & Halls', 'Southwest Distribution', 3000);
+  await swPromise;
+  if (runId !== animRunId) return;
+  await sleep(1200);
+  if (runId !== animRunId) return;
+
+  // ===== ACT 3B (0:21 - 0:27): 19.4 km SE Cagayan River Reach & Spurs =====
+  progressEl.style.width = '64%';
+  map.flyTo([17.578, 121.758], 12.7, { duration: 2.0, easeLinearity: 0.25 });
+  showCaption('Extending 19.4 km along the Cagayan River toward Namabbalan…');
+  await sleep(800);
+  if (runId !== animRunId) return;
+
+  const sePromise = animateWave('se', 3600, runId);
+  tweenKm(mainKm + swKm, DATA.stats.km, 3600, runId);
+  playChime(587.33, 0.08);
+  await sleep(1800);
+  if (runId !== animRunId) return;
+  addSpotlight([17.54829, 121.78442], 'Namabbalan Corridor', '19.4 km Southeast Reach', 3400);
+  await sePromise;
+  if (runId !== animRunId) return;
+  await sleep(1400);
+  if (runId !== animRunId) return;
+
+  // ===== ACT 4 (0:27 - 0:37): Full City Pull-Back + Color-Coded Category Waves =====
+  progressEl.style.width = '74%';
+  map.flyToBounds(siteBounds, { duration: 2.0, easeLinearity: 0.25 });
+  showCaption('45.5 km of Fiber · 93 Beneficiary Sites Switching On Across Tuguegarao City');
+  await sleep(2200);
+  if (runId !== animRunId) return;
+
+  let totalLit = 0, cHalls = 0, cSchools = 0, cGov = 0;
+
+  async function igniteCategoryWave(cat, captionText, baseNote, stepMs) {
+    const entries = siteEntries.filter(e => e.site.cat === cat);
+    const cm = CAT_META[cat];
+    updateChipHighlight(cat);
+    showCaption(captionText);
+    playChime(baseNote, 0.08);
+    for (let i = 0; i < entries.length; i++) {
+      if (runId !== animRunId) return;
+      const { site, marker } = entries[i];
+      marker.setStyle({ opacity: 1, fillOpacity: 0.95, radius: 7.5 });
+      totalLit++;
+      if (cat === 'hall') cHalls++;
+      else if (cat === 'school') cSchools++;
+      else cGov++;
+      const napProgress = Math.round((totalLit / DATA.stats.sites) * DATA.stats.naps);
+      setStats(totalLit, cHalls, cSchools, cGov, DATA.stats.km, napProgress);
+      if (i % 4 === 0) addRipple(site.p, cm.color);
+      await sleep(stepMs);
+    }
+    if (runId !== animRunId) return;
+    entries.forEach(({ marker }) => marker.setStyle({ radius: 5.8, fillOpacity: 0.85 }));
+  }
+
+  // Wave 1 (~29.6s - 31.8s): 44 Barangay Halls (Cyan)
+  progressEl.style.width = '80%';
+  await igniteCategoryWave('hall', '44 Barangay Halls — Connected in Electric Cyan', 523.25, 42);
+  if (runId !== animRunId) return;
+  await sleep(250);
+
+  // Wave 2 (~32.0s - 34.0s): 32 Schools / CSU (Gold)
+  progressEl.style.width = '86%';
+  await igniteCategoryWave('school', '32 Schools & CSU Campuses — Connected in Gold', 659.25, 52);
+  if (runId !== animRunId) return;
+  await sleep(250);
+
+  // Wave 3 (~34.2s - 36.0s): 17 Gov / Public Institutions (Magenta)
+  progressEl.style.width = '92%';
+  await igniteCategoryWave('gov', '17 Government & Public Institutions — Connected in Magenta', 783.99, 85);
+  if (runId !== animRunId) return;
+  await sleep(300);
+
+  // Wave 4 (~36.3s): All 93 shining together
+  updateChipHighlight('all');
+  siteEntries.forEach(({ marker }) => marker.setStyle({ opacity: 0.98, fillOpacity: 0.92, radius: 6 }));
+  setStats(DATA.stats.sites, DATA.stats.halls, DATA.stats.schools, DATA.stats.other, DATA.stats.km, DATA.stats.naps);
+  showCaption('All 93 Beneficiary Sites — Switching On Together');
+  playChime(1046.5, 0.09);
+  await sleep(1100);
+  if (runId !== animRunId) return;
+
+  // ===== ACT 5 (0:36 - 0:42): Grand Constellation Finale =====
+  hideCaption();
+  finaleCard.classList.add('show');
+  progressEl.style.width = '100%';
+  await sleep(5400);
+  if (runId !== animRunId) return;
+
+  btn.disabled = false;
+  btn.textContent = '↻  REPLAY CINEMATIC';
+  playing = false;
+
+  // Notify parent stage player (video.html) that the showcase finished
+  if (window.parent && window.parent !== window) {
+    window.parent.postMessage({ type: 'nfb-cinematic-ended' }, '*');
+  }
+}
+
+document.getElementById('cineBtn').addEventListener('click', playCinematic);
+document.getElementById('cleanBtn').addEventListener('click', () => document.body.classList.toggle('clean-mode'));
+
+window.addEventListener('keydown', e => {
+  if (e.key === 'h' || e.key === 'H') document.body.classList.toggle('clean-mode');
+  if (e.key === '+' || e.key === '=') map.zoomIn(0.8);
+  if (e.key === '-' || e.key === '_') map.zoomOut(0.8);
+  if (e.code === 'Space') { e.preventDefault(); playCinematic(); }
+});
+
+// Listen for stage triggers from liveboard-ultra7122026/public/video.html
+window.addEventListener('message', ev => {
+  if (!ev.data || typeof ev.data !== 'object') return;
+  if (ev.data.type === 'start-nfb-cinematic') {
+    playCinematic();
+  } else if (ev.data.type === 'reset-nfb-cinematic') {
+    ++animRunId;
+    stopAllAudio();
+    playing = false;
+    const btn = document.getElementById('cineBtn');
+    btn.disabled = false;
+    btn.textContent = '▶  PLAY CINEMATIC';
+    finaleCard.classList.remove('show');
+    hideCaption();
+    fxLayer.clearLayers();
+    fiberLines.forEach(f => setFiberProgress(f, 1));
+    siteEntries.forEach(({ marker }) => marker.setStyle({ opacity: 0.98, fillOpacity: 0.9, radius: 5.8 }));
+    setStats(DATA.stats.sites, DATA.stats.halls, DATA.stats.schools, DATA.stats.other, DATA.stats.km, DATA.stats.naps);
+    updateChipHighlight('all');
+    progressEl.style.width = '0%';
+    map.fitBounds(siteBounds, { animate: false });
+  }
+});
+
+// URL mode flags: ?stage=1 (stage broadcast layout) & ?autoplay=1
+const params = new URLSearchParams(window.location.search);
+if (params.get('stage') === '1') document.body.classList.add('stage-mode');
+if (params.get('clean') === '1') document.body.classList.add('clean-mode');
+if (params.get('autoplay') === '1') {
+  setTimeout(() => playCinematic(), 600);
+}
+</script>
+</body>
+</html>

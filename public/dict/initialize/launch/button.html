@@ -167,6 +167,23 @@
         width: clamp(200px, 30vw, 300px);
       }
 
+      #tabletBadge {
+        position: fixed;
+        top: 16px;
+        left: 16px;
+        z-index: 20;
+        padding: 0.4rem 1.1rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.15);
+        color: #fff;
+        font-size: clamp(0.8rem, 1.5vw, 1.1rem);
+        font-weight: 700;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        backdrop-filter: blur(4px);
+        user-select: none;
+      }
       #progressBar {
         width: 100%;
         height: 1.5rem;
@@ -193,6 +210,7 @@
     </style>
   </head>
   <body>
+    <div id="tabletBadge">Tablet ?</div>
     <div id="background">
       <video id="countdownVideo" autoplay loop muted playsinline>
         <source src="/videos/backdrop-ipad.mp4" type="video/mp4" />
@@ -227,17 +245,52 @@
         const launchButton = document.getElementById("playButton");
         const launchMessage = document.getElementById("launchMessage");
         const progressFill = document.getElementById("progressFill");
+        const progressBar = document.getElementById("progressBar");
+
+        // Tablet identity: ?tablet=1..5 (persisted so a bare URL keeps it).
+        const tabletParam = new URLSearchParams(window.location.search).get("tablet");
+        if (tabletParam) localStorage.setItem("tabletId", tabletParam);
+        const tabletId = localStorage.getItem("tabletId") || null;
+        const badge = document.getElementById("tabletBadge");
+        if (badge) badge.textContent = tabletId ? `Tablet ${tabletId}` : "Tablet —";
 
         if (video) video.play();
 
         let pressTimer;
         let progress = 0;
         let progressInterval;
+        let registered = false;
+        const originalButtonHTML = launchButton ? launchButton.innerHTML : "";
+
+        function resetButton() {
+          registered = false;
+          progress = 0;
+          if (progressFill) progressFill.style.width = "0%";
+          if (launchButton) {
+            launchButton.disabled = false;
+            launchButton.style.display = "flex";
+            launchButton.innerHTML = originalButtonHTML;
+          }
+          if (launchMessage) launchMessage.style.display = "none";
+          if (progressBar) progressBar.style.display = "block";
+        }
 
         const socket = io();
 
-        socket.on("videoPlaying", () => {
+        socket.on("reset", resetButton);
+
+        // A tablet page opened after launch syncs straight to the "launched" state.
+        socket.on("progress", (data) => {
+          if (data && data.launched) {
+            if (launchButton) launchButton.style.display = "none";
+            if (progressBar) progressBar.style.display = "none";
+            if (launchMessage) launchMessage.style.display = "block";
+          }
+        });
+
+        socket.on("launch", () => {
           if (launchButton) launchButton.style.display = "none";
+          if (progressBar) progressBar.style.display = "none";
           if (launchMessage) launchMessage.style.display = "block";
         });
 
@@ -251,6 +304,7 @@
 
         function startPress(e) {
           e.preventDefault();
+          if (registered) return;
           progress = 0;
           progressFill.style.width = "0%";
 
@@ -260,27 +314,32 @@
 
             if (progress >= 100) {
               clearInterval(progressInterval);
-              sendCountdown();
+              confirmPress();
             }
           }, 30); // Update every 30ms for a smooth 3-second fill
 
           pressTimer = setTimeout(() => {
             clearInterval(progressInterval);
-            sendCountdown();
+            confirmPress();
           }, 3000);
         }
 
         function endPress() {
+          if (registered) return;
           clearTimeout(pressTimer);
           clearInterval(progressInterval);
           progressFill.style.width = "0%";
         }
 
-        function sendCountdown() {
-          socket.emit("playVideo");
-          if (launchButton) launchButton.style.display = "none";
-          if (launchMessage) launchMessage.style.display = "block";
-          if (progressBar) progressBar.style.display = "none";
+        function confirmPress() {
+          if (registered) return;
+          registered = true;
+          socket.emit("pressLaunch", { tablet: tabletId ? Number(tabletId) : null });
+          if (progressFill) progressFill.style.width = "100%";
+          if (launchButton) {
+            launchButton.textContent = "Registered ✓";
+            launchButton.disabled = true;
+          }
         }
       });
     </script>
