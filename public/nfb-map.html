@@ -677,7 +677,8 @@ function precomputeLengths(coords) {
   const cum = [0];
   let total = 0;
   for (let i = 1; i < coords.length; i++) {
-    total += Math.hypot(coords[i][0] - coords[i - 1][0], coords[i][1] - coords[i - 1][1]);
+    const cosLat = Math.cos(((coords[i][0] + coords[i - 1][0]) * 0.5) * Math.PI / 180);
+    total += Math.hypot(coords[i][0] - coords[i - 1][0], (coords[i][1] - coords[i - 1][1]) * cosLat);
     cum.push(total);
   }
   return { cum, total };
@@ -977,8 +978,49 @@ function addRipple(latlng, color = '#22d3ee') {
 }
 
 let animRunId = 0;
+let mapZooming = false;
+map.on('zoomstart', () => { mapZooming = true; });
+map.on('zoomend', () => {
+  mapZooming = false;
+  requestAnimationFrame(() => {
+    if (mapZooming) return;
+    fiberLines.forEach(f => {
+      if (f._curFrac !== undefined && f._curFrac > 0 && f._curFrac < 1) {
+        setFiberProgress(f, f._curFrac);
+      }
+    });
+  });
+});
+
+function isRendererTransforming(fObj) {
+  if (mapZooming) return true;
+  const r = fObj && fObj.core && fObj.core._renderer;
+  return Boolean(r && r._zoom !== undefined && Math.abs(r._zoom - map.getZoom()) > 1e-6);
+}
+
+function flyAndWait(triggerFn, runId, maxWaitMs = 2600) {
+  return new Promise(resolve => {
+    let done = false;
+    let timer = null;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      map.off('moveend', onEnd);
+      // Wait 2 animation frames after moveend so Leaflet L.SVG._update() clears
+      // CSS zoom transforms and reprojects all vector panes cleanly.
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+    };
+    const onEnd = () => finish();
+    map.stop();
+    map.once('moveend', onEnd);
+    triggerFn();
+    timer = setTimeout(finish, maxWaitMs);
+  });
+}
 
 function setFiberProgress(fObj, frac) {
+  fObj._curFrac = frac;
   const pts = slicePolyline(fObj.meta.c, fObj.lens, frac);
   fObj.halo.setLatLngs(pts);
   fObj.core.setLatLngs(pts);
@@ -1034,6 +1076,10 @@ function animateWave(waveName, totalDurationMs, runId) {
         resolve(0);
         return;
       }
+      if (isRendererTransforming(schedule[0].item)) {
+        requestAnimationFrame(frame);
+        return;
+      }
       const elapsed = now - t0;
       let allDone = true;
 
@@ -1075,11 +1121,19 @@ function animateWave(waveName, totalDurationMs, runId) {
       if (!allDone && elapsed < totalDurationMs + 120) {
         requestAnimationFrame(frame);
       } else {
-        schedule.forEach(s => {
-          setFiberProgress(s.item, 1);
-          if (s.head) { fxLayer.removeLayer(s.head); s.head = null; }
-        });
-        resolve(waveKm(waveName));
+        const finalizeWave = () => {
+          if (runId !== animRunId) { resolve(0); return; }
+          schedule.forEach(s => {
+            setFiberProgress(s.item, 1);
+            if (s.head) { fxLayer.removeLayer(s.head); s.head = null; }
+          });
+          resolve(waveKm(waveName));
+        };
+        if (isRendererTransforming(schedule[0].item)) {
+          map.once('zoomend', finalizeWave);
+        } else {
+          finalizeWave();
+        }
       }
     }
     requestAnimationFrame(frame);
@@ -1137,22 +1191,20 @@ async function playCinematic() {
   }
 
   // ===== ACT 1 (0:00 - 0:06): Ignition at DICT Regional Office 2 =====
-  map.flyTo(DATA.hub.p, 16.5, { duration: 2.2, easeLinearity: 0.2 });
   showCaption('DICT Regional Office 2 — Origin Hub · Tuguegarao City');
   progressEl.style.width = '10%';
-  await sleep(1600);
+  await flyAndWait(() => map.flyTo(DATA.hub.p, 16.5, { duration: 1.8, easeLinearity: 0.25 }), runId, 2600);
   if (runId !== animRunId) return;
   playIgnitionBoom();
   addRipple(DATA.hub.p);
-  addSpotlight(DATA.hub.p, 'DICT Regional Office 2', 'NFB Phase 2 Origin Hub', 4400);
-  await sleep(3400);
+  addSpotlight(DATA.hub.p, 'DICT Regional Office 2', 'NFB Phase 2 Origin Hub', 4200);
+  await sleep(3000);
   if (runId !== animRunId) return;
 
   // ===== ACT 2 (0:06 - 0:15): Main Line Backbone Surge (emerges from DICT R2) =====
   progressEl.style.width = '28%';
-  map.flyTo([17.630, 121.724], 13.4, { duration: 2.0, easeLinearity: 0.25 });
   showCaption('Energizing the Main Fiber Backbone outward from DICT Region 2…');
-  await sleep(900);
+  await flyAndWait(() => map.flyTo([17.630, 121.724], 13.4, { duration: 1.6, easeLinearity: 0.25 }), runId, 2400);
   if (runId !== animRunId) return;
 
   const mainKm = waveKm('main');
@@ -1172,9 +1224,8 @@ async function playCinematic() {
 
   // ===== ACT 3A (0:15 - 0:21): Downtown, Cataggaman & Southwest Branches =====
   progressEl.style.width = '48%';
-  map.flyTo([17.608, 121.714], 13.8, { duration: 2.0, easeLinearity: 0.25 });
   showCaption('Branching across Población, Cataggaman, Bagay & Buntun…');
-  await sleep(900);
+  await flyAndWait(() => map.flyTo([17.608, 121.714], 13.8, { duration: 1.5, easeLinearity: 0.25 }), runId, 2300);
   if (runId !== animRunId) return;
 
   const swKm = waveKm('sw');
@@ -1194,9 +1245,8 @@ async function playCinematic() {
 
   // ===== ACT 3B (0:21 - 0:27): 19.4 km SE Cagayan River Reach & Spurs =====
   progressEl.style.width = '64%';
-  map.flyTo([17.578, 121.758], 12.7, { duration: 2.0, easeLinearity: 0.25 });
   showCaption('Extending 19.4 km along the Cagayan River toward Namabbalan…');
-  await sleep(800);
+  await flyAndWait(() => map.flyTo([17.578, 121.758], 12.7, { duration: 1.6, easeLinearity: 0.25 }), runId, 2400);
   if (runId !== animRunId) return;
 
   const sePromise = animateWave('se', 3600, runId);
@@ -1212,9 +1262,10 @@ async function playCinematic() {
 
   // ===== ACT 4 (0:27 - 0:37): Full City Pull-Back + Color-Coded Category Waves =====
   progressEl.style.width = '74%';
-  map.flyToBounds(siteBounds, { duration: 2.0, easeLinearity: 0.25 });
   showCaption('45.5 km of Fiber · 93 Beneficiary Sites Switching On Across Tuguegarao City');
-  await sleep(2200);
+  await flyAndWait(() => map.flyToBounds(siteBounds, { duration: 1.8, easeLinearity: 0.25 }), runId, 2600);
+  if (runId !== animRunId) return;
+  await sleep(300);
   if (runId !== animRunId) return;
 
   let totalLit = 0, cHalls = 0, cSchools = 0, cGov = 0;
