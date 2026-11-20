@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Video Page</title>
+    <title>(FPIAP) Free Public Internet Access Program — PICS PP Phase 2</title>
     <script src="/socket.io/socket.io.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -181,10 +181,10 @@
         position: relative;
         z-index: 1;
         display: flex;
-        gap: clamp(0.7rem, 1.4vw, 1.2rem);
+        gap: clamp(1rem, 2vw, 1.8rem);
         justify-content: center;
         align-items: center;
-        padding: 0.8rem 1.4rem;
+        padding: 0.85rem 1.8rem;
         margin-bottom: 1.6rem;
         background: rgba(255, 255, 255, 0.96);
         border-radius: 14px;
@@ -194,7 +194,7 @@
       }
 
       img {
-        height: clamp(1.6rem, 2.6vw, 2.5rem);
+        height: clamp(2.4rem, 3.8vw, 3.4rem);
         width: auto;
         max-width: none;
         object-fit: contain;
@@ -459,18 +459,14 @@
     <div id="modal">
       <div id="modal-content">
         <div class="logo">
-          <img src="assets/arta.png" alt="arta-logo" />
-          <img src="assets/bagong_pilipinas.png" alt="bp-logo" />
-          <img src="assets/batanes.png" alt="batanes-logo" />
-          <img src="assets/dict.png" alt="dict-logo" />
-          <img src="assets/dilg.png" alt="dilg-logo" />
-          <img src="assets/dti.png" alt="dti-logo" />
-          <img src="assets/eLGU.png" alt="eLGU-logo" />
-          <img src="assets/psa.png" alt="psa-logo" />
+          <img src="assets/finale-dict.png" alt="DICT" />
+          <img src="assets/finale-freewifi.png" alt="Free Wi-Fi for All" />
+          <img src="assets/finale-bagong-pilipinas.png" alt="Bagong Pilipinas" />
+          <img src="assets/finale-tuguegarao.png" alt="Tuguegarao City" />
         </div>
         <h2>
-          Free WiFi<br />for All
-          <span class="sub">Tuguegarao City · DICT Region 2</span>
+          Free Public Internet Access Program
+          <span class="sub">PICS PP Phase 2 · Tuguegarao City · DICT Region 2</span>
         </h2>
         <button id="participateBtn">Participate</button>
       </div>
@@ -482,7 +478,7 @@
       <div class="hud-corner tr"></div>
       <div class="hud-corner bl"></div>
       <div class="hud-corner br"></div>
-      <div class="hud-top-left">eLGU · NFB Phase 2</div>
+      <div class="hud-top-left">FPIAP · PICS PP Phase 2</div>
       <div class="hud-top-right">Live</div>
       <div id="percentDisplay">0%</div>
       <div id="loadingBar">
@@ -530,8 +526,8 @@
       </div>
     </div>
 
-    <!-- Preloaded local cinematic NFB zoom map (tiles cached before countdown ends) -->
-    <iframe id="nfbMapFrame" src="/nfb-map.html?stage=1" allow="autoplay" title="NFB Phase 2 Cinematic Map"></iframe>
+    <!-- Preloaded local cinematic PICS PP Phase 2 zoom map (tiles cached before countdown ends) -->
+    <iframe id="nfbMapFrame" src="/nfb-map.html?stage=1" allow="autoplay" title="PICS PP Phase 2 Cinematic Map"></iframe>
 
     <script>
       const socket = io();
@@ -553,6 +549,32 @@
       const loadingFill = document.getElementById("loadingFill");
       const hub = document.getElementById("hub");
       const TOTAL_LAPTOPS = 5;
+      const isPreview = new URLSearchParams(window.location.search).get("preview") === "1";
+
+      if (isPreview) {
+        countdownVideo.muted = true;
+        distributionVideo.muted = true;
+        loopingVideo.muted = true;
+        nfbMapFrame.src = "/nfb-map.html?stage=1&muted=1";
+      }
+
+      let latestMapState = null;
+      function postToMap(msg) {
+        if (nfbMapFrame && nfbMapFrame.contentWindow) {
+          nfbMapFrame.contentWindow.postMessage(msg, "*");
+        }
+      }
+      function syncMapStateToFrame(st) {
+        if (!st) return;
+        postToMap({ type: "set-sound", enabled: isPreview ? false : Boolean(st.soundEnabled) });
+        postToMap({ type: "set-clean", enabled: Boolean(st.cleanMode) });
+        if (st.voiceoverUrl) {
+          postToMap({ type: "set-voiceover", url: st.voiceoverUrl, name: st.voiceoverName });
+        }
+      }
+      nfbMapFrame.addEventListener("load", function () {
+        syncMapStateToFrame(latestMapState);
+      });
 
       let distributionAvailable = true;
       distributionVideo.addEventListener("error", function () {
@@ -611,8 +633,51 @@
       }
 
       window.addEventListener("message", function (ev) {
-        if (ev.data && ev.data.type === "nfb-cinematic-ended") {
+        if (!ev.data || typeof ev.data !== "object") return;
+        if (ev.data.type === "nfb-cinematic-started") {
+          if (!isPreview) socket.emit("map-status", { playing: true });
+        } else if (ev.data.type === "nfb-cinematic-ended") {
           startLoopingVideo();
+          if (!isPreview) socket.emit("map-status", { playing: false });
+        }
+      });
+
+      socket.on("map-state", function (st) {
+        latestMapState = st;
+        const en = isPreview ? false : Boolean(st && st.soundEnabled);
+        countdownVideo.muted = !en;
+        distributionVideo.muted = !en;
+        loopingVideo.muted = !en;
+        syncMapStateToFrame(st);
+      });
+
+      socket.on("map-command", function (cmd) {
+        if (!cmd || typeof cmd !== "object") return;
+        if (cmd.type === "play-cinematic") {
+          modal.style.display = "none";
+          countdownVideo.pause();
+          distributionVideo.pause();
+          loopingVideo.pause();
+          countdownVideo.currentTime = 0;
+          distributionVideo.currentTime = 0;
+          loopingVideo.currentTime = 0;
+          countdownVideo.style.display = "none";
+          distributionVideo.style.display = "none";
+          loopingVideo.style.display = "none";
+          setDisplayMode("video");
+          nfbMapFrame.classList.add("active");
+          syncMapStateToFrame(latestMapState);
+          postToMap({ type: "replay-nfb-cinematic" });
+        } else if (cmd.type === "set-sound") {
+          const en = isPreview ? false : Boolean(cmd.enabled);
+          countdownVideo.muted = !en;
+          distributionVideo.muted = !en;
+          loopingVideo.muted = !en;
+          postToMap({ type: "set-sound", enabled: en });
+        } else if (cmd.type === "set-clean") {
+          postToMap({ type: "set-clean", enabled: Boolean(cmd.enabled) });
+        } else if (cmd.type === "set-voiceover") {
+          postToMap({ type: "set-voiceover", url: cmd.url, name: cmd.name });
         }
       });
 

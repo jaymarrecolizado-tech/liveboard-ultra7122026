@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>eLGU Launch — Control Dashboard</title>
+    <title>FPIAP · PICS PP Phase 2 — Control Dashboard</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
       :root {
@@ -34,7 +34,15 @@
       }
       header h1 { font-size: 1.15rem; margin: 0; letter-spacing: 0.05em; }
       header small { display: block; font-size: 0.72rem; opacity: 0.85; letter-spacing: 0.12em; text-transform: uppercase; }
-      .head-logo { height: 44px; width: auto; }
+      .head-logos {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.65rem;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 0.32rem 0.75rem;
+        border-radius: 10px;
+      }
+      .head-logo { height: 34px; width: auto; display: block; }
       #connBadge {
         margin-left: auto;
         display: flex;
@@ -210,6 +218,7 @@
         gap: 0.5rem;
       }
       #previewBar span { font-size: 0.75rem; color: #475569; }
+      .preview-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; }
       .mini-btn {
         border: 1px solid #cbd5e1;
         background: #f1f5f9;
@@ -222,6 +231,44 @@
         color: var(--navy-dark);
       }
       .mini-btn:hover { background: #e2e8f0; }
+
+      /* Cinematic map toolbar (remote controls for stage & map) */
+      #mapToolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.55rem;
+        padding: 0.65rem 0.85rem;
+        margin-bottom: 0.75rem;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #061329, #0a1e3d);
+        border: 1px solid rgba(56, 189, 248, 0.3);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      }
+      .map-btn {
+        background: rgba(8, 18, 40, 0.9);
+        color: #e0f2fe;
+        border: 1px solid rgba(56, 189, 248, 0.42);
+        padding: 0.48rem 0.95rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 0.03em;
+        cursor: pointer;
+        transition: transform 0.14s ease, background 0.2s, box-shadow 0.2s;
+        white-space: nowrap;
+      }
+      .map-btn:hover { transform: translateY(-1px); background: rgba(14, 165, 233, 0.28); box-shadow: 0 0 14px rgba(56, 189, 248, 0.35); }
+      .map-btn.active { background: rgba(56, 189, 248, 0.26); border-color: #38bdf8; color: #fff; }
+      .map-btn.off { background: rgba(127, 29, 29, 0.45); border-color: rgba(248, 113, 113, 0.6); color: #fecaca; }
+      .map-btn.primary {
+        margin-left: auto;
+        background: linear-gradient(120deg, #0ea5e9, #2563eb);
+        border: 0;
+        color: #fff;
+        padding: 0.52rem 1.15rem;
+        box-shadow: 0 0 18px rgba(56, 189, 248, 0.5);
+      }
 
       #toast {
         position: fixed;
@@ -243,10 +290,14 @@
   </head>
   <body>
     <header>
-      <img class="head-logo" src="/assets/dict.png" alt="DICT" />
-      <img class="head-logo" src="/assets/eLGU.png" alt="eLGU" />
+      <div class="head-logos">
+        <img class="head-logo" src="/assets/finale-dict.png" alt="DICT" />
+        <img class="head-logo" src="/assets/finale-freewifi.png" alt="Free Wi-Fi for All" />
+        <img class="head-logo" src="/assets/finale-bagong-pilipinas.png" alt="Bagong Pilipinas" />
+        <img class="head-logo" src="/assets/finale-tuguegarao.png" alt="Tuguegarao City" />
+      </div>
       <div>
-        <h1>eLGU Launch — Control Dashboard</h1>
+        <h1>FPIAP · PICS PP Phase 2 — Control Dashboard</h1>
         <small>Operator control for the launch display</small>
       </div>
       <div id="connBadge"><span id="connDot"></span><span id="connText">Connecting…</span></div>
@@ -279,13 +330,23 @@
       <!-- RIGHT: live preview of the viewing page -->
       <section class="panel">
         <h2>Viewing Page — Live Preview</h2>
+        <div id="mapToolbar" aria-label="Cinematic Map Controls">
+          <button class="map-btn active" id="mapVoiceBtn" title="Upload a custom .wav or .mp3 voiceover to all displays">🎙 Voiceover Ready</button>
+          <input type="file" id="mapVoiceFile" accept="audio/*" style="display:none" />
+          <button class="map-btn" id="mapSoundBtn" title="Toggle sound and voiceover on the stage display">🔊 Sound: ON</button>
+          <button class="map-btn" id="mapCleanBtn" title="Hide or show HUD overlays on the cinematic map">Hide UI (H)</button>
+          <button class="map-btn primary" id="mapPlayBtn" title="Play or replay the 43s cinematic map on the stage display">▶&nbsp; PLAY CINEMATIC</button>
+        </div>
         <div id="previewBar">
-          <span>Mirrors the main display. Audio may not play inside the preview frame.</span>
-          <a class="mini-btn" href="/" target="_blank" rel="noopener">Open full display ↗</a>
-          <button class="mini-btn" id="reloadPreviewBtn">↻ Reload preview</button>
+          <span>Mirrors the stage display (preview stays muted to avoid echo).</span>
+          <div class="preview-actions">
+            <a class="mini-btn" href="/nfb-map.html" target="_blank" rel="noopener">Open Map ↗</a>
+            <a class="mini-btn" href="/" target="_blank" rel="noopener">Open full display ↗</a>
+            <button class="mini-btn" id="reloadPreviewBtn">↻ Reload preview</button>
+          </div>
         </div>
         <div id="previewWrap">
-          <iframe id="displayPreview" src="/" title="Launch display"></iframe>
+          <iframe id="displayPreview" src="/?preview=1" title="Launch display"></iframe>
         </div>
       </section>
     </main>
@@ -379,6 +440,78 @@
       document.getElementById("reloadPreviewBtn").addEventListener("click", () => {
         const iframe = document.getElementById("displayPreview");
         iframe.src = iframe.src;
+      });
+
+      const mapVoiceBtn = document.getElementById("mapVoiceBtn");
+      const mapVoiceFile = document.getElementById("mapVoiceFile");
+      const mapSoundBtn = document.getElementById("mapSoundBtn");
+      const mapCleanBtn = document.getElementById("mapCleanBtn");
+      const mapPlayBtn = document.getElementById("mapPlayBtn");
+
+      function renderMapControls(st) {
+        if (!st || typeof st !== "object") return;
+        const voName = st.voiceoverName || "Voiceover Ready";
+        mapVoiceBtn.textContent = "🎙 " + (voName.length > 18 ? voName.slice(0, 18) + "…" : voName);
+        mapVoiceBtn.classList.toggle("active", Boolean(st.voiceoverUrl));
+
+        const soundOn = Boolean(st.soundEnabled);
+        mapSoundBtn.textContent = soundOn ? "🔊 Sound: ON" : "🔇 Sound: OFF";
+        mapSoundBtn.classList.toggle("off", !soundOn);
+
+        const cleanOn = Boolean(st.cleanMode);
+        mapCleanBtn.textContent = cleanOn ? "Show UI (H)" : "Hide UI (H)";
+        mapCleanBtn.classList.toggle("active", cleanOn);
+
+        if (st.playing) {
+          mapPlayBtn.textContent = "… PLAYING";
+        } else if (st.hasPlayed) {
+          mapPlayBtn.textContent = "↻\u00a0 REPLAY CINEMATIC";
+        } else {
+          mapPlayBtn.textContent = "▶\u00a0 PLAY CINEMATIC";
+        }
+      }
+
+      socket.on("map-state", renderMapControls);
+
+      mapVoiceBtn.addEventListener("click", () => mapVoiceFile.click());
+      mapVoiceFile.addEventListener("change", async () => {
+        const file = mapVoiceFile.files && mapVoiceFile.files[0];
+        if (!file) return;
+        mapVoiceBtn.textContent = "🎙 Uploading…";
+        try {
+          const res = await fetch("/api/voiceover", {
+            method: "POST",
+            headers: {
+              "Content-Type": file.type || "application/octet-stream",
+              "X-Filename": file.name,
+            },
+            body: file,
+          });
+          if (res.ok) {
+            const payload = await res.json();
+            if (payload && payload.mapState) renderMapControls(payload.mapState);
+            showToast("Voiceover synced: " + file.name);
+          } else {
+            showToast("Voiceover upload failed");
+          }
+        } catch {
+          showToast("Voiceover upload failed");
+        } finally {
+          mapVoiceFile.value = "";
+        }
+      });
+
+      mapSoundBtn.addEventListener("click", () => {
+        socket.emit("map-control", { action: "toggle-sound" });
+      });
+
+      mapCleanBtn.addEventListener("click", () => {
+        socket.emit("map-control", { action: "toggle-clean" });
+      });
+
+      mapPlayBtn.addEventListener("click", () => {
+        socket.emit("map-control", { action: "play-cinematic" });
+        showToast("Cinematic map triggered");
       });
     </script>
   </body>
