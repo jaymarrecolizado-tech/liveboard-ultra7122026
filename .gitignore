@@ -131,3 +131,6 @@ dist
 
 # OS files
 .DS_Store
+
+# Local-only large stage video (>100MB GitHub limit)
+public/videos/REVISED - FPIAP FIBER AVP.mp4
