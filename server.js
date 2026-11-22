@@ -10,6 +10,8 @@ let presses = 0;
 let launched = false;
 const pressedSockets = new Set();
 const pressedTablets = new Set();
+const holdingTablets = new Set();
+const socketHolding = new Map();
 
 const audioDir = path.join(__dirname, "public", "audio");
 const videosDir = path.join(__dirname, "public", "videos");
@@ -96,6 +98,7 @@ function statePayload() {
     percent: Math.min(100, Math.round((presses / TOTAL_PRESSES) * 100)),
     launched,
     pressedTablets: [...pressedTablets].sort(),
+    holdingTablets: [...holdingTablets].sort(),
   };
 }
 
@@ -141,6 +144,8 @@ function resetSequence() {
   launched = false;
   pressedSockets.clear();
   pressedTablets.clear();
+  holdingTablets.clear();
+  socketHolding.clear();
 }
 
 app.post(
@@ -289,6 +294,22 @@ io.on("connection", (socket) => {
     io.emit("map-state", mapState);
   });
 
+  socket.on("tabletHold", (data) => {
+    if (launched) return;
+    const tablet = data && Number(data.tablet) >= 1 && Number(data.tablet) <= TOTAL_PRESSES
+      ? Number(data.tablet)
+      : null;
+    if (tablet === null || pressedTablets.has(tablet)) return;
+    if (data.holding) {
+      holdingTablets.add(tablet);
+      socketHolding.set(socket.id, tablet);
+    } else {
+      holdingTablets.delete(tablet);
+      if (socketHolding.get(socket.id) === tablet) socketHolding.delete(socket.id);
+    }
+    io.emit("progress", statePayload());
+  });
+
   socket.on("pressLaunch", (data) => {
     if (launched) return;
     if (pressedSockets.has(socket.id)) return; // one press per tablet
@@ -298,7 +319,11 @@ io.on("connection", (socket) => {
       : null;
     // A tablet number already used doesn't count twice.
     if (tablet !== null && pressedTablets.has(tablet)) return;
-    if (tablet !== null) pressedTablets.add(tablet);
+    if (tablet !== null) {
+      pressedTablets.add(tablet);
+      holdingTablets.delete(tablet);
+    }
+    socketHolding.delete(socket.id);
     presses += 1;
     const justLaunched = presses >= TOTAL_PRESSES;
     if (justLaunched) launched = true;
@@ -311,6 +336,12 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
+    const held = socketHolding.get(socket.id);
+    if (held !== undefined) {
+      socketHolding.delete(socket.id);
+      holdingTablets.delete(held);
+      io.emit("progress", statePayload());
+    }
     console.log("User disconnected");
   });
 });

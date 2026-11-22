@@ -307,6 +307,7 @@
           if (registered) return;
           progress = 0;
           progressFill.style.width = "0%";
+          socket.emit("tabletHold", { tablet: tabletId ? Number(tabletId) : null, holding: true });
 
           progressInterval = setInterval(() => {
             progress += 1;
@@ -329,6 +330,7 @@
           clearTimeout(pressTimer);
           clearInterval(progressInterval);
           progressFill.style.width = "0%";
+          socket.emit("tabletHold", { tablet: tabletId ? Number(tabletId) : null, holding: false });
         }
 
         function confirmPress() {

@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@400;500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Exo+2:ital,wght@0,600;0,700;0,800;1,700;1,800;1,900&family=Poppins:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
     <style>
@@ -227,235 +227,728 @@
         margin-top: 0.85rem;
       }
 
-      /* ---- Launch progress loading ---- */
+      /* ---- Futuristic Cyber-Stage Launch Loading Screen ---- */
       #loadingScreen {
         position: fixed;
         inset: 0;
         display: none;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
+        justify-content: space-between;
+        box-sizing: border-box;
+        padding: clamp(10px, 2.2vh, 28px) clamp(14px, 2.6vw, 44px) clamp(10px, 1.8vh, 22px);
         overflow: hidden;
-        color: white;
+        color: #f8fafc;
+        font-family: "Exo 2", "Poppins", "Segoe UI", Arial, sans-serif;
         background:
-          radial-gradient(1200px 700px at 50% -12%, rgba(56, 189, 248, 0.3), transparent 60%),
-          radial-gradient(950px 650px at 50% 115%, rgba(14, 165, 233, 0.24), transparent 62%),
-          linear-gradient(rgba(125, 211, 252, 0.05) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(125, 211, 252, 0.05) 1px, transparent 1px),
-          #071a2e;
-        background-size: auto, auto, 46px 46px, 46px 46px, auto;
+          radial-gradient(ellipse 68% 46% at 50% 45%, rgba(34, 211, 238, 0.14), transparent 68%),
+          linear-gradient(180deg, rgba(2, 8, 22, 0.62) 0%, rgba(2, 10, 26, 0.22) 34%, rgba(2, 10, 26, 0.28) 68%, rgba(2, 6, 18, 0.86) 100%),
+          url("assets/stage-launch-bg.jpg") center center / cover no-repeat,
+          #030917;
         z-index: 500;
       }
       #loadingScreen::before {
         content: "";
         position: absolute;
         inset: 0;
-        background: radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.55) 100%);
+        background: radial-gradient(ellipse at 50% 48%, transparent 56%, rgba(1, 5, 16, 0.62) 100%);
         pointer-events: none;
+        z-index: 1;
       }
       .scanline {
         position: absolute;
+        top: 0;
         left: 0;
         right: 0;
-        height: 120px;
-        background: linear-gradient(to bottom, transparent, rgba(125, 211, 252, 0.12), transparent);
-        animation: scan 5.5s linear infinite;
+        height: 110px;
+        background: linear-gradient(to bottom, transparent, rgba(56, 189, 248, 0.09), transparent);
+        animation: scan 6.5s linear infinite;
+        will-change: transform;
         pointer-events: none;
+        z-index: 1;
       }
       @keyframes scan {
-        from { top: -20%; }
-        to { top: 120%; }
+        from { transform: translate3d(0, -18vh, 0); }
+        to { transform: translate3d(0, 118vh, 0); }
       }
-      .hud-corner {
-        position: absolute;
-        width: 38px;
-        height: 38px;
-        border: 2px solid rgba(125, 211, 252, 0.65);
-        pointer-events: none;
-      }
-      .hud-corner.tl { top: 26px; left: 26px; border-right: none; border-bottom: none; }
-      .hud-corner.tr { top: 26px; right: 26px; border-left: none; border-bottom: none; }
-      .hud-corner.bl { bottom: 26px; left: 26px; border-right: none; border-top: none; }
-      .hud-corner.br { bottom: 26px; right: 26px; border-left: none; border-top: none; }
-      .hud-top-left,
-      .hud-top-right {
-        position: absolute;
-        top: 34px;
-        z-index: 2;
-        font-family: "Poppins", sans-serif;
-        font-weight: 600;
-        font-size: clamp(0.6rem, 1vw, 0.75rem);
-        letter-spacing: 0.32em;
-        text-transform: uppercase;
-        color: rgba(224, 242, 254, 0.85);
-      }
-      .hud-top-left { left: 76px; }
-      .hud-top-right {
-        right: 76px;
-        display: flex;
-        align-items: center;
-        gap: 0.55rem;
-        color: #fda4af;
-      }
-      .hud-top-right::before {
-        content: "";
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        background: #f43f5e;
-        animation: liveBlink 1.1s ease-in-out infinite;
-        box-shadow: 0 0 10px rgba(244, 63, 94, 0.9);
-      }
-      @keyframes liveBlink {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.25; }
-      }
-      #percentDisplay {
+
+      /* Top Header */
+      .stage-header {
         position: relative;
-        z-index: 1;
-        font-family: "Bebas Neue", "Poppins", sans-serif;
-        font-size: clamp(8rem, 19vw, 17rem);
-        font-weight: 400;
-        letter-spacing: 0.02em;
-        line-height: 0.95;
-        background: linear-gradient(180deg, #ffffff 15%, #b8ecff 45%, #38bdf8 80%, #0ea5e9 100%);
+        z-index: 4;
+        width: 100%;
+        display: grid;
+        grid-template-columns: minmax(70px, 1fr) auto minmax(70px, 1fr);
+        align-items: start;
+        gap: 1vw;
+      }
+      .wifi-emblem {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-self: start;
+        position: relative;
+        width: clamp(56px, 7.6vw, 132px);
+        padding-top: 0.2vh;
+      }
+      .wifi-emblem svg {
+        width: clamp(46px, 6.2vw, 108px);
+        height: auto;
+        filter: drop-shadow(0 0 14px rgba(56, 189, 248, 0.85))
+                drop-shadow(0 4px 18px rgba(14, 165, 233, 0.6));
+        animation: wifiFloat 3.6s ease-in-out infinite;
+      }
+      .wifi-emblem-ring {
+        width: 92%;
+        height: clamp(10px, 1.5vh, 18px);
+        margin-top: -4px;
+        border-radius: 50%;
+        border: 1.5px solid rgba(56, 189, 248, 0.72);
+        box-shadow:
+          0 0 14px rgba(56, 189, 248, 0.65),
+          inset 0 0 10px rgba(34, 211, 238, 0.45);
+        background: radial-gradient(ellipse at center, rgba(34, 211, 238, 0.35), transparent 72%);
+      }
+      @keyframes wifiFloat {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-4px); }
+      }
+
+      .stage-title-block {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: clamp(3px, 0.55vh, 7px);
+      }
+      .stage-title-main {
+        margin: 0;
+        font-family: "Exo 2", "Poppins", sans-serif;
+        font-weight: 900;
+        font-style: italic;
+        font-size: clamp(1.05rem, 2.75vw, 2.95rem);
+        letter-spacing: 0.04em;
+        line-height: 1.05;
+        text-transform: uppercase;
+        background: linear-gradient(180deg, #ffffff 18%, #e2e8f0 56%, #94a3b8 100%);
         -webkit-background-clip: text;
         background-clip: text;
         color: transparent;
-        filter: drop-shadow(0 0 26px rgba(56, 189, 248, 0.45))
-                drop-shadow(0 6px 60px rgba(56, 189, 248, 0.35));
+        filter: drop-shadow(0 3px 10px rgba(2, 6, 23, 0.9))
+                drop-shadow(0 0 18px rgba(56, 189, 248, 0.28));
+      }
+      .stage-title-main .dict-glow {
+        background: linear-gradient(180deg, #e0f2fe 10%, #38bdf8 55%, #0284c7 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        filter: drop-shadow(0 0 16px rgba(56, 189, 248, 0.95));
+      }
+      .stage-title-pill {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+        padding: clamp(2px, 0.4vh, 5px) clamp(12px, 1.8vw, 28px);
+        font-weight: 800;
+        font-style: italic;
+        font-size: clamp(0.62rem, 1.32vw, 1.38rem);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #67e8f9;
+        text-shadow: 0 0 14px rgba(34, 211, 238, 0.8);
+        background: linear-gradient(90deg, transparent, rgba(8, 47, 73, 0.65) 15%, rgba(8, 47, 73, 0.65) 85%, transparent);
+        border-top: 1px solid rgba(56, 189, 248, 0.42);
+        border-bottom: 1px solid rgba(56, 189, 248, 0.42);
+      }
+      .stage-title-pill::before,
+      .stage-title-pill::after {
+        content: "";
+        position: absolute;
+        top: -1px;
+        bottom: -1px;
+        width: 10px;
+        border: 2px solid #38bdf8;
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.7);
+      }
+      .stage-title-pill::before { left: 0; border-right: none; transform: skewX(-18deg); }
+      .stage-title-pill::after { right: 0; border-left: none; transform: skewX(-18deg); }
+
+      .stage-title-sub {
+        font-family: "Poppins", "Exo 2", sans-serif;
+        font-weight: 600;
+        font-size: clamp(0.5rem, 0.98vw, 1.02rem);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(241, 245, 249, 0.94);
+        text-shadow: 0 2px 10px rgba(2, 6, 23, 0.95);
+      }
+
+      .live-badge {
+        justify-self: end;
+        display: inline-flex;
+        align-items: center;
+        gap: clamp(5px, 0.6vw, 10px);
+        padding: clamp(4px, 0.65vh, 8px) clamp(10px, 1.3vw, 20px);
+        border-radius: 999px;
+        background: linear-gradient(180deg, rgba(185, 28, 28, 0.94), rgba(127, 29, 29, 0.96));
+        border: 1.5px solid rgba(252, 165, 165, 0.55);
+        box-shadow:
+          0 0 20px rgba(239, 68, 68, 0.65),
+          inset 0 1px 0 rgba(255, 255, 255, 0.25);
+        font-weight: 800;
+        font-size: clamp(0.62rem, 1.05vw, 1.08rem);
+        letter-spacing: 0.16em;
+        color: #ffffff;
+        text-transform: uppercase;
+      }
+      .live-dot {
+        width: clamp(7px, 0.72vw, 11px);
+        height: clamp(7px, 0.72vw, 11px);
+        border-radius: 50%;
+        background: #ff4d6d;
+        box-shadow: 0 0 12px #ff4d6d, 0 0 4px #ffffff;
+        animation: liveBlink 1.1s ease-in-out infinite;
+      }
+      @keyframes liveBlink {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.35; transform: scale(0.85); }
+      }
+
+      /* Hero Percentage & Progress Bar */
+      .stage-hero {
+        position: relative;
+        z-index: 4;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        margin-top: clamp(-2px, -0.4vh, -6px);
+      }
+      #percentDisplay {
+        position: relative;
+        font-family: "Exo 2", "Poppins", sans-serif;
+        font-size: clamp(3.2rem, 12.2vh, 8.8rem);
+        font-weight: 900;
+        font-style: italic;
+        letter-spacing: -0.02em;
+        line-height: 0.92;
+        padding: 0 0.14em;
+        background: linear-gradient(180deg, #ffffff 12%, #e0f2fe 46%, #7dd3fc 72%, #0284c7 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        filter:
+          drop-shadow(0 5px 12px rgba(2, 6, 23, 0.92))
+          drop-shadow(0 0 28px rgba(56, 189, 248, 0.65));
       }
       #percentDisplay.bump {
-        animation: bump 0.4s ease;
+        animation: bump 0.42s cubic-bezier(0.22, 1, 0.36, 1);
       }
       @keyframes bump {
         0% { transform: scale(1); }
-        50% { transform: scale(1.15); }
+        45% { transform: scale(1.1); }
         100% { transform: scale(1); }
       }
       #loadingBar {
         position: relative;
-        z-index: 1;
-        width: min(58vw, 820px);
-        height: 1.35rem;
-        margin-top: 1.6rem;
-        background: rgba(255, 255, 255, 0.08);
+        width: min(64vw, 960px);
+        height: clamp(14px, 2.5vh, 26px);
+        margin-top: clamp(6px, 1.1vh, 14px);
+        padding: 2px;
+        box-sizing: border-box;
+        background: rgba(3, 14, 34, 0.78);
         border-radius: 999px;
         overflow: hidden;
-        border: 1px solid rgba(125, 211, 252, 0.5);
-        box-shadow: 0 0 24px rgba(56, 189, 248, 0.18), inset 0 0 12px rgba(0, 0, 0, 0.5);
+        border: 1.5px solid rgba(125, 211, 252, 0.72);
+        box-shadow:
+          0 0 26px rgba(34, 211, 238, 0.32),
+          inset 0 2px 10px rgba(0, 0, 0, 0.85);
       }
       #loadingFill {
         position: relative;
         width: 0%;
         height: 100%;
         overflow: hidden;
-        background: linear-gradient(90deg, #3a0cb8, #1010a6, #19cbf0, #97dee5);
-        background-size: 250% 100%;
-        animation: gradientFlow 2.8s ease infinite;
+        background: linear-gradient(90deg, #0284c7 0%, #06b6d4 45%, #22d3ee 82%, #cffafe 100%);
         border-radius: 999px;
-        box-shadow: 0 0 18px rgba(56, 189, 248, 0.65);
+        box-shadow: 0 0 22px rgba(34, 211, 238, 0.9);
+        transition: width 0.08s linear;
+      }
+      #loadingFill::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        right: -2px;
+        width: 24px;
+        border-radius: 999px;
+        background: radial-gradient(circle at right center, #ffffff 0%, rgba(165, 243, 252, 0.85) 45%, transparent 100%);
+        box-shadow: 0 0 16px #ffffff, 0 0 28px #22d3ee;
       }
       #loadingFill::after {
         content: "";
         position: absolute;
         top: 0;
         bottom: 0;
-        width: 90px;
-        background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.75), transparent);
-        animation: barShine 1.6s ease-in-out infinite;
+        left: 0;
+        width: 110px;
+        background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.65), transparent);
+        animation: barShine 2s ease-in-out infinite;
+        will-change: transform;
       }
       @keyframes barShine {
-        from { left: -110px; }
-        to { left: 110%; }
-      }
-      @keyframes gradientFlow {
-        0% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-        100% { background-position: 0% 50%; }
-      }
-      #loadingText {
-        position: relative;
-        z-index: 1;
-        margin-top: 1.3rem;
-        font-family: "Poppins", sans-serif;
-        font-weight: 600;
-        font-size: clamp(0.68rem, 1.35vw, 0.95rem);
-        letter-spacing: 0.5em;
-        text-transform: uppercase;
-        text-indent: 0.5em;
-        color: rgba(224, 242, 254, 0.9);
+        from { transform: translate3d(-130px, 0, 0); }
+        to { transform: translate3d(min(64vw, 960px), 0, 0); }
       }
 
-      /* ---- Laptop connection map ---- */
-      #connectionMap {
+      /* 5-Tablet Stage Arena + Curved Conduits + Central 3D Hub */
+      .stage-arena {
         position: relative;
-        z-index: 1;
-        width: min(92vw, 1150px);
-        height: 26vh;
-        min-height: 140px;
-        margin-top: 1rem;
+        z-index: 3;
+        width: min(94vw, 1520px);
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        align-items: center;
       }
-      #connectionMap svg { width: 100%; height: 100%; }
+      .tablet-row {
+        position: relative;
+        z-index: 4;
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: clamp(8px, 1.5vw, 24px);
+        align-items: end;
+        box-sizing: border-box;
+      }
+      .tablet-unit {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        position: relative;
+        transition: transform 0.35s ease;
+      }
+      .tablet-unit.connecting {
+        transform: translateY(-4px);
+      }
+      .tablet-unit.connected {
+        transform: translateY(-6px);
+      }
+      .tablet-device {
+        position: relative;
+        width: min(88%, 210px);
+        aspect-ratio: 16 / 10.6;
+        border-radius: clamp(6px, 0.7vw, 11px);
+        padding: clamp(4px, 0.45vw, 7px);
+        box-sizing: border-box;
+        background: linear-gradient(160deg, #1e293b 0%, #091124 55%, #020617 100%);
+        border: 1.5px solid rgba(125, 211, 252, 0.45);
+        box-shadow:
+          0 10px 26px rgba(0, 0, 0, 0.78),
+          0 0 18px rgba(56, 189, 248, 0.22),
+          inset 0 1px 0 rgba(255, 255, 255, 0.22);
+        transition: border-color 0.35s ease, box-shadow 0.35s ease;
+      }
+      #tablet-1 .tablet-device { transform: perspective(600px) rotateY(9deg); }
+      #tablet-2 .tablet-device { transform: perspective(600px) rotateY(4deg); }
+      #tablet-4 .tablet-device { transform: perspective(600px) rotateY(-4deg); }
+      #tablet-5 .tablet-device { transform: perspective(600px) rotateY(-9deg); }
+
+      .tablet-screen {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        border-radius: clamp(4px, 0.45vw, 7px);
+        background: radial-gradient(circle at 50% 42%, rgba(14, 116, 144, 0.48) 0%, rgba(7, 26, 56, 0.92) 65%, #030a1a 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        box-shadow: inset 0 0 18px rgba(34, 211, 238, 0.2);
+      }
+      .tablet-screen::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(130deg, rgba(255, 255, 255, 0.14) 0%, transparent 42%);
+        pointer-events: none;
+      }
+      .tablet-wifi-svg {
+        width: 48%;
+        height: auto;
+        color: #38bdf8;
+        filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.8));
+        transition: color 0.35s ease, filter 0.35s ease;
+      }
+      .tablet-indicator {
+        position: absolute;
+        right: 8%;
+        bottom: 10%;
+        width: clamp(16px, 1.9vw, 30px);
+        height: clamp(16px, 1.9vw, 30px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .ind-spinner {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        border: 2.5px dashed rgba(103, 232, 249, 0.42);
+        box-sizing: border-box;
+        opacity: 0.55;
+      }
+      .ind-check {
+        display: none;
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: radial-gradient(circle at 35% 30%, #86efac, #22c55e 58%, #15803d 100%);
+        box-shadow: 0 0 14px rgba(34, 197, 94, 0.95);
+        align-items: center;
+        justify-content: center;
+      }
+      .ind-check svg {
+        width: 62%;
+        height: 62%;
+        stroke: #ffffff;
+        stroke-width: 3.4;
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      /* Pedestal Ring & Labels */
+      .tablet-pedestal {
+        position: relative;
+        width: 96%;
+        margin-top: clamp(4px, 0.65vh, 10px);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding-bottom: clamp(6px, 1vh, 14px);
+      }
+      .pedestal-ring {
+        position: absolute;
+        left: 4%;
+        right: 4%;
+        bottom: 0;
+        height: clamp(18px, 3vh, 34px);
+        border-radius: 50%;
+        border: 2px solid rgba(56, 189, 248, 0.62);
+        background: radial-gradient(ellipse at center, rgba(14, 165, 233, 0.34) 0%, rgba(2, 16, 40, 0.8) 65%, transparent 100%);
+        box-shadow:
+          0 0 18px rgba(56, 189, 248, 0.45),
+          0 8px 22px rgba(14, 165, 233, 0.25),
+          inset 0 0 12px rgba(56, 189, 248, 0.38);
+        pointer-events: none;
+        transition: all 0.35s ease;
+      }
+      .tablet-name {
+        position: relative;
+        z-index: 2;
+        font-family: "Exo 2", "Poppins", sans-serif;
+        font-weight: 800;
+        font-size: clamp(0.54rem, 0.88vw, 0.92rem);
+        letter-spacing: 0.14em;
+        color: #e2e8f0;
+        text-shadow: 0 2px 6px rgba(2, 6, 23, 0.95);
+        margin-bottom: 3px;
+      }
+      .tablet-status {
+        position: relative;
+        z-index: 2;
+        min-width: 68%;
+        text-align: center;
+        padding: clamp(2px, 0.38vh, 5px) clamp(8px, 0.9vw, 14px);
+        border-radius: 5px;
+        font-weight: 800;
+        font-size: clamp(0.5rem, 0.84vw, 0.88rem);
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+        color: #cbd5e1;
+        background: linear-gradient(180deg, rgba(30, 41, 59, 0.92), rgba(15, 23, 42, 0.96));
+        border: 1px solid rgba(148, 163, 184, 0.45);
+        box-shadow: 0 4px 12px rgba(2, 6, 23, 0.7);
+        transition: all 0.3s ease;
+      }
+
+      /* CONNECTING state (VIP holding tablet) */
+      .tablet-unit.connecting .tablet-device {
+        border-color: #38bdf8;
+        box-shadow:
+          0 10px 28px rgba(0, 0, 0, 0.82),
+          0 0 26px rgba(34, 211, 238, 0.72),
+          inset 0 1px 0 rgba(255, 255, 255, 0.35);
+      }
+      .tablet-unit.connecting .ind-spinner {
+        opacity: 1;
+        border-color: #22d3ee;
+        border-top-color: #ffffff;
+        animation: spinFast 0.9s linear infinite;
+        filter: drop-shadow(0 0 8px #22d3ee);
+      }
+      .tablet-unit.connecting .pedestal-ring {
+        border-color: #22d3ee;
+        box-shadow:
+          0 0 26px rgba(34, 211, 238, 0.85),
+          0 10px 28px rgba(34, 211, 238, 0.45),
+          inset 0 0 16px rgba(103, 232, 249, 0.55);
+      }
+      .tablet-unit.connecting .tablet-status {
+        color: #e0f2fe;
+        background: linear-gradient(180deg, rgba(8, 145, 178, 0.92), rgba(12, 74, 110, 0.96));
+        border-color: #67e8f9;
+        box-shadow: 0 0 16px rgba(34, 211, 238, 0.75);
+        animation: statusPulse 1s ease-in-out infinite;
+      }
+      @keyframes spinFast {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      @keyframes statusPulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.72; }
+      }
+
+      /* CONNECTED state (tablet completed 3s hold) */
+      .tablet-unit.connected .tablet-device {
+        border-color: #4ade80;
+        box-shadow:
+          0 10px 28px rgba(0, 0, 0, 0.82),
+          0 0 28px rgba(34, 197, 94, 0.65),
+          inset 0 1px 0 rgba(255, 255, 255, 0.35);
+      }
+      .tablet-unit.connected .tablet-wifi-svg {
+        color: #7dd3fc;
+        filter: drop-shadow(0 0 12px rgba(74, 222, 128, 0.75));
+      }
+      .tablet-unit.connected .ind-spinner {
+        display: none;
+      }
+      .tablet-unit.connected .ind-check {
+        display: flex;
+      }
+      .tablet-unit.connected .pedestal-ring {
+        border-color: #4ade80;
+        background: radial-gradient(ellipse at center, rgba(34, 197, 94, 0.42) 0%, rgba(6, 40, 26, 0.78) 65%, transparent 100%);
+        box-shadow:
+          0 0 26px rgba(34, 197, 94, 0.85),
+          0 10px 30px rgba(34, 197, 94, 0.45),
+          inset 0 0 16px rgba(134, 239, 172, 0.5);
+      }
+      .tablet-unit.connected .tablet-status {
+        color: #ecfdf5;
+        background: linear-gradient(180deg, rgba(22, 163, 74, 0.94), rgba(20, 83, 45, 0.98));
+        border-color: #86efac;
+        box-shadow: 0 0 18px rgba(34, 197, 94, 0.85);
+      }
+
+      /* Curved Neon Conduits + Central 3D Wi-Fi Hub */
+      .conduit-stage {
+        position: relative;
+        width: 100%;
+        height: clamp(72px, 16.5vh, 176px);
+        margin-top: clamp(-14px, -1.6vh, -6px);
+        z-index: 2;
+      }
+      #connectionMap {
+        width: 100%;
+        height: 100%;
+        display: block;
+        overflow: visible;
+      }
       .link {
-        stroke: rgba(255, 255, 255, 0.22);
+        fill: none;
+        stroke: rgba(56, 189, 248, 0.34);
         stroke-width: 3;
         stroke-linecap: round;
-        transition: stroke 0.4s ease;
+        transition: stroke 0.35s ease, stroke-width 0.35s ease, filter 0.35s ease;
       }
-      .link.active {
+      .link.connecting {
+        stroke: #22d3ee;
+        stroke-width: 4.5;
+        stroke-dasharray: 16 12;
+        animation: dashFlow 0.75s linear infinite;
+        filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.95));
+      }
+      .link.connected {
         stroke: #4ade80;
-        stroke-width: 5;
-        stroke-dasharray: 12 10;
-        animation: dashFlow 0.7s linear infinite;
-        filter: drop-shadow(0 0 6px rgba(74, 222, 128, 0.8));
+        stroke-width: 5.5;
+        stroke-dasharray: 22 10;
+        animation: dashFlow 0.55s linear infinite;
+        filter: drop-shadow(0 0 10px rgba(74, 222, 128, 0.95))
+                drop-shadow(0 0 18px rgba(34, 211, 238, 0.65));
       }
       @keyframes dashFlow {
         from { stroke-dashoffset: 0; }
-        to { stroke-dashoffset: -22; }
+        to { stroke-dashoffset: -32; }
       }
-      .laptop-node .screen,
-      .laptop-node .base {
-        fill: rgba(255, 255, 255, 0.28);
-        transition: fill 0.4s ease;
-      }
-      .laptop-node .label {
-        fill: rgba(255, 255, 255, 0.55);
-        font-size: 17px;
-        font-weight: 700;
-        letter-spacing: 2px;
-        font-family: Arial, sans-serif;
-        transition: fill 0.4s ease;
-      }
-      .laptop-node .dot {
-        fill: rgba(255, 255, 255, 0.3);
-        transition: fill 0.4s ease;
-      }
-      .laptop-node.active .screen,
-      .laptop-node.active .base { fill: #22c55e; }
-      .laptop-node.active .label { fill: #bbf7d0; }
-      .laptop-node.active .dot {
-        fill: #4ade80;
-        animation: dotPulse 1.1s ease-in-out infinite;
-      }
-      @keyframes dotPulse {
-        0%, 100% { opacity: 1; }
-        50% { opacity: 0.35; }
-      }
-      .hub {
-        fill: rgba(255, 255, 255, 0.15);
-        stroke: rgba(255, 255, 255, 0.4);
-        stroke-width: 2;
+
+      #hub {
+        position: absolute;
+        left: 50%;
+        bottom: clamp(2px, 0.8vh, 12px);
+        transform: translateX(-50%);
+        width: clamp(112px, 15.5vw, 248px);
+        height: clamp(38px, 6.2vh, 72px);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background:
+          radial-gradient(ellipse at 50% 42%, rgba(14, 165, 233, 0.65) 0%, rgba(7, 36, 76, 0.95) 56%, #030b1c 100%);
+        border: 2.5px solid rgba(103, 232, 249, 0.78);
+        box-shadow:
+          0 10px 26px rgba(0, 0, 0, 0.9),
+          0 0 28px rgba(34, 211, 238, 0.55),
+          inset 0 0 18px rgba(56, 189, 248, 0.55);
         transition: all 0.4s ease;
       }
-      .hub.all {
-        fill: #22c55e;
-        stroke: #bbf7d0;
+      #hub::before {
+        content: "";
+        position: absolute;
+        inset: -8px -16px;
+        border-radius: 50%;
+        border: 1.5px solid rgba(56, 189, 248, 0.38);
+        box-shadow: 0 0 24px rgba(56, 189, 248, 0.35);
+        pointer-events: none;
+      }
+      #hub svg {
+        width: 44%;
+        height: auto;
+        color: #7dd3fc;
+        filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.9));
+        transform: scaleY(0.76);
+        transition: all 0.35s ease;
+      }
+      #hub.energized {
+        border-color: #38bdf8;
+        box-shadow:
+          0 10px 28px rgba(0, 0, 0, 0.9),
+          0 0 38px rgba(34, 211, 238, 0.85),
+          inset 0 0 24px rgba(103, 232, 249, 0.7);
+      }
+      #hub.all {
+        border-color: #86efac;
+        background: radial-gradient(ellipse at 50% 42%, rgba(74, 222, 128, 0.78) 0%, rgba(14, 116, 144, 0.95) 58%, #042f2e 100%);
+        box-shadow:
+          0 10px 28px rgba(0, 0, 0, 0.9),
+          0 0 48px rgba(74, 222, 128, 0.95),
+          inset 0 0 28px rgba(187, 247, 208, 0.85);
         animation: hubPulse 1s ease-in-out infinite;
       }
+      #hub.all svg {
+        color: #ffffff;
+        filter: drop-shadow(0 0 14px #86efac);
+      }
       @keyframes hubPulse {
-        0%, 100% { filter: drop-shadow(0 0 6px rgba(74,222,128,0.7)); }
-        50% { filter: drop-shadow(0 0 22px rgba(74,222,128,1)); }
+        0%, 100% { transform: translateX(-50%) scale(1); }
+        50% { transform: translateX(-50%) scale(1.04); }
+      }
+
+      /* Bottom HUD Footer */
+      .stage-footer {
+        position: relative;
+        z-index: 5;
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 1vw;
+      }
+      .footer-devices {
+        justify-self: start;
+        display: inline-flex;
+        align-items: center;
+        gap: clamp(6px, 0.7vw, 12px);
+        padding: clamp(5px, 0.75vh, 10px) clamp(10px, 1.25vw, 20px);
+        border-radius: 8px;
+        background: rgba(5, 18, 42, 0.84);
+        border: 1px solid rgba(56, 189, 248, 0.45);
+        box-shadow: 0 0 16px rgba(14, 165, 233, 0.22);
+        font-weight: 700;
+        font-size: clamp(0.56rem, 0.95vw, 0.98rem);
+        letter-spacing: 0.1em;
+        color: #e2e8f0;
+        text-transform: uppercase;
+      }
+      .footer-devices svg {
+        width: clamp(14px, 1.4vw, 22px);
+        height: auto;
+        color: #38bdf8;
+        flex-shrink: 0;
+      }
+      #deviceCount {
+        color: #67e8f9;
+        font-weight: 800;
+      }
+
+      .footer-status {
+        display: inline-flex;
+        align-items: center;
+        gap: clamp(8px, 1.1vw, 18px);
+        padding: clamp(6px, 0.9vh, 11px) clamp(16px, 2.6vw, 44px);
+        border-radius: 8px;
+        background: linear-gradient(180deg, rgba(8, 28, 62, 0.88), rgba(3, 12, 30, 0.94));
+        border: 1px solid rgba(56, 189, 248, 0.52);
+        box-shadow:
+          0 0 22px rgba(14, 165, 233, 0.28),
+          inset 0 1px 0 rgba(125, 211, 252, 0.28);
+      }
+      .status-chevrons {
+        color: #22d3ee;
+        font-weight: 900;
+        font-size: clamp(0.62rem, 1.05vw, 1.08rem);
+        letter-spacing: 0.08em;
+        text-shadow: 0 0 10px rgba(34, 211, 238, 0.85);
+      }
+      #loadingText {
+        font-family: "Exo 2", "Poppins", sans-serif;
+        font-weight: 800;
+        font-size: clamp(0.58rem, 1.08vw, 1.12rem);
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: #f8fafc;
+        text-shadow: 0 0 12px rgba(56, 189, 248, 0.45);
+        white-space: nowrap;
+      }
+
+      /* Hover-only operator controls (no RESET on public LED wall) */
+      .footer-controls {
+        justify-self: end;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        opacity: 0;
+        transition: opacity 0.25s ease;
+      }
+      .footer-controls:hover,
+      .footer-controls:focus-within {
+        opacity: 0.95;
+      }
+      .stage-ctrl-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 13px;
+        border-radius: 7px;
+        border: 1px solid rgba(56, 189, 248, 0.48);
+        background: rgba(5, 18, 42, 0.88);
+        color: #e0f2fe;
+        font-family: "Exo 2", "Poppins", sans-serif;
+        font-weight: 700;
+        font-size: 0.78rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: background 0.15s ease, border-color 0.15s ease;
+      }
+      .stage-ctrl-btn:hover {
+        background: rgba(14, 116, 144, 0.55);
+        border-color: #67e8f9;
       }
     </style>
   </head>
@@ -478,30 +971,206 @@
 
     <div id="loadingScreen">
       <div class="scanline"></div>
-      <div class="hud-corner tl"></div>
-      <div class="hud-corner tr"></div>
-      <div class="hud-corner bl"></div>
-      <div class="hud-corner br"></div>
-      <div class="hud-top-left">FPIAP · PICS PP Phase 2</div>
-      <div class="hud-top-right">Live</div>
-      <div id="percentDisplay">0%</div>
-      <div id="loadingBar">
-        <div id="loadingFill"></div>
-      </div>
-      <svg id="connectionMap" viewBox="0 0 1000 250" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Laptop connection map">
-        <line id="link-1" class="link" x1="100" y1="112" x2="500" y2="228" />
-        <line id="link-2" class="link" x1="300" y1="112" x2="500" y2="228" />
-        <line id="link-3" class="link" x1="500" y1="112" x2="500" y2="228" />
-        <line id="link-4" class="link" x1="700" y1="112" x2="500" y2="228" />
-        <line id="link-5" class="link" x1="900" y1="112" x2="500" y2="228" />
-        <circle id="hub" class="hub" cx="500" cy="230" r="13" />
-        <g id="laptop-1" class="laptop-node"><rect class="screen" x="70" y="28" width="60" height="38" rx="5"/><rect class="base" x="58" y="70" width="84" height="7" rx="3.5"/><text class="label" x="100" y="98" text-anchor="middle">LAPTOP 1</text><circle class="dot" cx="100" cy="106" r="4"/></g>
-        <g id="laptop-2" class="laptop-node"><rect class="screen" x="270" y="28" width="60" height="38" rx="5"/><rect class="base" x="258" y="70" width="84" height="7" rx="3.5"/><text class="label" x="300" y="98" text-anchor="middle">LAPTOP 2</text><circle class="dot" cx="300" cy="106" r="4"/></g>
-        <g id="laptop-3" class="laptop-node"><rect class="screen" x="470" y="28" width="60" height="38" rx="5"/><rect class="base" x="458" y="70" width="84" height="7" rx="3.5"/><text class="label" x="500" y="98" text-anchor="middle">LAPTOP 3</text><circle class="dot" cx="500" cy="106" r="4"/></g>
-        <g id="laptop-4" class="laptop-node"><rect class="screen" x="670" y="28" width="60" height="38" rx="5"/><rect class="base" x="658" y="70" width="84" height="7" rx="3.5"/><text class="label" x="700" y="98" text-anchor="middle">LAPTOP 4</text><circle class="dot" cx="700" cy="106" r="4"/></g>
-        <g id="laptop-5" class="laptop-node"><rect class="screen" x="870" y="28" width="60" height="38" rx="5"/><rect class="base" x="858" y="70" width="84" height="7" rx="3.5"/><text class="label" x="900" y="98" text-anchor="middle">LAPTOP 5</text><circle class="dot" cx="900" cy="106" r="4"/></g>
-      </svg>
-      <div id="loadingText">Preparing launch</div>
+
+      <!-- Top Header -->
+      <header class="stage-header">
+        <div class="wifi-emblem" aria-hidden="true">
+          <svg viewBox="0 0 120 88" fill="none">
+            <defs>
+              <linearGradient id="wifiGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#ffffff" />
+                <stop offset="48%" stop-color="#7dd3fc" />
+                <stop offset="100%" stop-color="#0284c7" />
+              </linearGradient>
+            </defs>
+            <path d="M12 34 C38 10 82 10 108 34" stroke="url(#wifiGrad)" stroke-width="11" stroke-linecap="round" />
+            <path d="M29 51 C46 35 74 35 91 51" stroke="url(#wifiGrad)" stroke-width="10" stroke-linecap="round" />
+            <path d="M46 66 C54 58 66 58 74 66" stroke="url(#wifiGrad)" stroke-width="9" stroke-linecap="round" />
+            <circle cx="60" cy="78" r="8" fill="url(#wifiGrad)" />
+          </svg>
+          <div class="wifi-emblem-ring"></div>
+        </div>
+
+        <div class="stage-title-block">
+          <h1 class="stage-title-main">
+            FREE WI-FI FOR ALL · <span class="dict-glow">DICT</span> REGION 2
+          </h1>
+          <div class="stage-title-pill">
+            (FPIAP) FREE PUBLIC INTERNET ACCESS PROGRAM
+          </div>
+          <div class="stage-title-sub">
+            PROVISION OF INTERNET CONNECTIVITY SERVICES IN PUBLIC PLACES – PHASE 2
+          </div>
+        </div>
+
+        <div class="live-badge">
+          <span class="live-dot"></span>
+          <span>LIVE</span>
+        </div>
+      </header>
+
+      <!-- Hero Percentage & Progress Bar -->
+      <section class="stage-hero">
+        <div id="percentDisplay">0%</div>
+        <div id="loadingBar">
+          <div id="loadingFill"></div>
+        </div>
+      </section>
+
+      <!-- 5 Futuristic 3D Tablet Pedestals + Curved Conduits + Central Wi-Fi Hub -->
+      <section class="stage-arena" aria-label="VIP Tablet Launch Status">
+        <div class="tablet-row">
+          <div id="tablet-1" class="tablet-unit">
+            <div class="tablet-device">
+              <div class="tablet-screen">
+                <svg class="tablet-wifi-svg" viewBox="0 0 100 74" fill="none">
+                  <path d="M12 28 C34 8 66 8 88 28" stroke="currentColor" stroke-width="8.5" stroke-linecap="round" />
+                  <path d="M26 43 C40 30 60 30 74 43" stroke="currentColor" stroke-width="8" stroke-linecap="round" />
+                  <path d="M40 56 C46 50 54 50 60 56" stroke="currentColor" stroke-width="7.5" stroke-linecap="round" />
+                  <circle cx="50" cy="66" r="6" fill="currentColor" />
+                </svg>
+                <div class="tablet-indicator">
+                  <div class="ind-spinner"></div>
+                  <div class="ind-check"><svg viewBox="0 0 24 24"><polyline points="5 13 10 18 19 7" /></svg></div>
+                </div>
+              </div>
+            </div>
+            <div class="tablet-pedestal">
+              <div class="pedestal-ring"></div>
+              <div class="tablet-name">TABLET 01</div>
+              <div id="tablet-status-1" class="tablet-status">STANDBY</div>
+            </div>
+          </div>
+
+          <div id="tablet-2" class="tablet-unit">
+            <div class="tablet-device">
+              <div class="tablet-screen">
+                <svg class="tablet-wifi-svg" viewBox="0 0 100 74" fill="none">
+                  <path d="M12 28 C34 8 66 8 88 28" stroke="currentColor" stroke-width="8.5" stroke-linecap="round" />
+                  <path d="M26 43 C40 30 60 30 74 43" stroke="currentColor" stroke-width="8" stroke-linecap="round" />
+                  <path d="M40 56 C46 50 54 50 60 56" stroke="currentColor" stroke-width="7.5" stroke-linecap="round" />
+                  <circle cx="50" cy="66" r="6" fill="currentColor" />
+                </svg>
+                <div class="tablet-indicator">
+                  <div class="ind-spinner"></div>
+                  <div class="ind-check"><svg viewBox="0 0 24 24"><polyline points="5 13 10 18 19 7" /></svg></div>
+                </div>
+              </div>
+            </div>
+            <div class="tablet-pedestal">
+              <div class="pedestal-ring"></div>
+              <div class="tablet-name">TABLET 02</div>
+              <div id="tablet-status-2" class="tablet-status">STANDBY</div>
+            </div>
+          </div>
+
+          <div id="tablet-3" class="tablet-unit">
+            <div class="tablet-device">
+              <div class="tablet-screen">
+                <svg class="tablet-wifi-svg" viewBox="0 0 100 74" fill="none">
+                  <path d="M12 28 C34 8 66 8 88 28" stroke="currentColor" stroke-width="8.5" stroke-linecap="round" />
+                  <path d="M26 43 C40 30 60 30 74 43" stroke="currentColor" stroke-width="8" stroke-linecap="round" />
+                  <path d="M40 56 C46 50 54 50 60 56" stroke="currentColor" stroke-width="7.5" stroke-linecap="round" />
+                  <circle cx="50" cy="66" r="6" fill="currentColor" />
+                </svg>
+                <div class="tablet-indicator">
+                  <div class="ind-spinner"></div>
+                  <div class="ind-check"><svg viewBox="0 0 24 24"><polyline points="5 13 10 18 19 7" /></svg></div>
+                </div>
+              </div>
+            </div>
+            <div class="tablet-pedestal">
+              <div class="pedestal-ring"></div>
+              <div class="tablet-name">TABLET 03</div>
+              <div id="tablet-status-3" class="tablet-status">STANDBY</div>
+            </div>
+          </div>
+
+          <div id="tablet-4" class="tablet-unit">
+            <div class="tablet-device">
+              <div class="tablet-screen">
+                <svg class="tablet-wifi-svg" viewBox="0 0 100 74" fill="none">
+                  <path d="M12 28 C34 8 66 8 88 28" stroke="currentColor" stroke-width="8.5" stroke-linecap="round" />
+                  <path d="M26 43 C40 30 60 30 74 43" stroke="currentColor" stroke-width="8" stroke-linecap="round" />
+                  <path d="M40 56 C46 50 54 50 60 56" stroke="currentColor" stroke-width="7.5" stroke-linecap="round" />
+                  <circle cx="50" cy="66" r="6" fill="currentColor" />
+                </svg>
+                <div class="tablet-indicator">
+                  <div class="ind-spinner"></div>
+                  <div class="ind-check"><svg viewBox="0 0 24 24"><polyline points="5 13 10 18 19 7" /></svg></div>
+                </div>
+              </div>
+            </div>
+            <div class="tablet-pedestal">
+              <div class="pedestal-ring"></div>
+              <div class="tablet-name">TABLET 04</div>
+              <div id="tablet-status-4" class="tablet-status">STANDBY</div>
+            </div>
+          </div>
+
+          <div id="tablet-5" class="tablet-unit">
+            <div class="tablet-device">
+              <div class="tablet-screen">
+                <svg class="tablet-wifi-svg" viewBox="0 0 100 74" fill="none">
+                  <path d="M12 28 C34 8 66 8 88 28" stroke="currentColor" stroke-width="8.5" stroke-linecap="round" />
+                  <path d="M26 43 C40 30 60 30 74 43" stroke="currentColor" stroke-width="8" stroke-linecap="round" />
+                  <path d="M40 56 C46 50 54 50 60 56" stroke="currentColor" stroke-width="7.5" stroke-linecap="round" />
+                  <circle cx="50" cy="66" r="6" fill="currentColor" />
+                </svg>
+                <div class="tablet-indicator">
+                  <div class="ind-spinner"></div>
+                  <div class="ind-check"><svg viewBox="0 0 24 24"><polyline points="5 13 10 18 19 7" /></svg></div>
+                </div>
+              </div>
+            </div>
+            <div class="tablet-pedestal">
+              <div class="pedestal-ring"></div>
+              <div class="tablet-name">TABLET 05</div>
+              <div id="tablet-status-5" class="tablet-status">STANDBY</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="conduit-stage">
+          <svg id="connectionMap" viewBox="0 0 1000 180" preserveAspectRatio="none" role="img" aria-label="Tablet connection conduits">
+            <path id="link-1" class="link" d="M 100 14 C 130 112, 285 134, 445 136" />
+            <path id="link-2" class="link" d="M 300 14 C 325 94, 390 120, 465 130" />
+            <path id="link-3" class="link" d="M 500 14 L 500 124" />
+            <path id="link-4" class="link" d="M 700 14 C 675 94, 610 120, 535 130" />
+            <path id="link-5" class="link" d="M 900 14 C 870 112, 715 134, 555 136" />
+          </svg>
+          <div id="hub" aria-label="Central Network Hub">
+            <svg viewBox="0 0 100 74" fill="none">
+              <path d="M12 28 C34 8 66 8 88 28" stroke="currentColor" stroke-width="9" stroke-linecap="round" />
+              <path d="M26 43 C40 30 60 30 74 43" stroke="currentColor" stroke-width="8.5" stroke-linecap="round" />
+              <path d="M40 56 C46 50 54 50 60 56" stroke="currentColor" stroke-width="8" stroke-linecap="round" />
+              <circle cx="50" cy="66" r="6.5" fill="currentColor" />
+            </svg>
+          </div>
+        </div>
+      </section>
+
+      <!-- Bottom HUD Footer -->
+      <footer class="stage-footer">
+        <div class="footer-devices">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5s-3 1.34-3 3 1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z" />
+          </svg>
+          <span id="deviceCount">0 / 5</span>
+          <span>DEVICES CONNECTED</span>
+        </div>
+
+        <div class="footer-status">
+          <span class="status-chevrons" aria-hidden="true">&raquo;&raquo;&raquo;</span>
+          <span id="loadingText">READY FOR VIP ACTIVATION</span>
+          <span class="status-chevrons" aria-hidden="true">&laquo;&laquo;&laquo;</span>
+        </div>
+
+        <div class="footer-controls">
+          <button id="stageSoundBtn" class="stage-ctrl-btn" type="button" title="Toggle Stage Audio">Sound: ON</button>
+          <button id="stageFullscreenBtn" class="stage-ctrl-btn" type="button" title="Toggle Fullscreen">Fullscreen</button>
+        </div>
+      </footer>
     </div>
 
     <div style="position: relative">
@@ -596,16 +1265,67 @@
         });
       }
 
-      function renderConnections(pressedTablets) {
+      const deviceCountEl = document.getElementById("deviceCount");
+      const stageSoundBtn = document.getElementById("stageSoundBtn");
+      const stageFullscreenBtn = document.getElementById("stageFullscreenBtn");
+
+      if (stageSoundBtn) {
+        stageSoundBtn.addEventListener("click", function () {
+          const next = !(latestMapState ? latestMapState.soundEnabled : true);
+          socket.emit("map-set-sound", { enabled: next });
+        });
+      }
+      if (stageFullscreenBtn) {
+        stageFullscreenBtn.addEventListener("click", function () {
+          if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen().catch(function () {});
+          } else {
+            document.exitFullscreen().catch(function () {});
+          }
+        });
+      }
+
+      function renderConnections(pressedTablets, holdingTablets) {
         const pressed = new Set((pressedTablets || []).map(Number));
+        const holding = new Set((holdingTablets || []).map(Number));
         for (let i = 1; i <= TOTAL_LAPTOPS; i++) {
-          const active = pressed.has(i);
-          const node = document.getElementById("laptop-" + i);
+          const isConnected = pressed.has(i);
+          const isConnecting = !isConnected && holding.has(i);
+          const unit = document.getElementById("tablet-" + i);
+          const statusEl = document.getElementById("tablet-status-" + i);
           const link = document.getElementById("link-" + i);
-          if (node) node.classList.toggle("active", active);
-          if (link) link.classList.toggle("active", active);
+          if (unit) {
+            unit.classList.toggle("connected", isConnected);
+            unit.classList.toggle("connecting", isConnecting);
+          }
+          if (statusEl) {
+            statusEl.textContent = isConnected
+              ? "CONNECTED"
+              : isConnecting
+              ? "CONNECTING..."
+              : "STANDBY";
+          }
+          if (link) {
+            link.classList.toggle("connected", isConnected);
+            link.classList.toggle("connecting", isConnecting);
+          }
         }
-        if (hub) hub.classList.toggle("all", pressed.size >= TOTAL_LAPTOPS);
+        if (deviceCountEl) {
+          deviceCountEl.textContent = pressed.size + " / " + TOTAL_LAPTOPS;
+        }
+        if (hub) {
+          hub.classList.toggle("energized", pressed.size > 0 || holding.size > 0);
+          hub.classList.toggle("all", pressed.size >= TOTAL_LAPTOPS);
+        }
+        if (loadingText && !launched) {
+          if (pressed.size >= TOTAL_LAPTOPS) {
+            loadingText.textContent = "LAUNCHING PICS PP PHASE 2…";
+          } else if (holding.size > 0 || pressed.size > 0) {
+            loadingText.textContent = "ESTABLISHING SECURE CONNECTION…";
+          } else {
+            loadingText.textContent = "READY FOR VIP ACTIVATION";
+          }
+        }
       }
 
       let hasParticipated = isPreview;
@@ -667,6 +1387,9 @@
         distributionVideo.muted = !en;
         loopingVideo.muted = !en;
         seqVideo.muted = !en;
+        if (stageSoundBtn) {
+          stageSoundBtn.textContent = "Sound: " + (Boolean(enabled) ? "ON" : "OFF");
+        }
       }
 
       function launchCinematicMap() {
@@ -828,7 +1551,7 @@
       socket.on("progress", function (data) {
         targetPercent = data.percent;
         if (data.launched) launched = true;
-        renderConnections(data.pressedTablets);
+        renderConnections(data.pressedTablets, data.holdingTablets);
         if (hasParticipated) animatePercent();
       });
 
@@ -842,7 +1565,7 @@
         animating = false;
         percentDisplay.textContent = "100%";
         loadingFill.style.width = "100%";
-        if (loadingText) loadingText.textContent = "Launching PICS PP Phase 2…";
+        if (loadingText) loadingText.textContent = "LAUNCHING PICS PP PHASE 2…";
         launchTimer = setTimeout(function () {
           if (launched) startAVP();
         }, 1150);
@@ -859,13 +1582,13 @@
         animating = false;
         percentDisplay.textContent = "0%";
         loadingFill.style.width = "0%";
-        if (loadingText) loadingText.textContent = "Preparing launch";
+        if (loadingText) loadingText.textContent = "READY FOR VIP ACTIVATION";
 
         stopAllVideos();
         nfbMapFrame.classList.remove("active");
         postToMap({ type: "reset-nfb-cinematic" });
 
-        renderConnections([]);
+        renderConnections([], []);
         if (isPreview) {
           modal.style.display = "none";
           setDisplayMode("loading");
@@ -877,7 +1600,7 @@
 
       // Animate the big % number + bar toward targetPercent (ease-out cubic).
       function animatePercent() {
-        if (animating) return;
+        if (animating || targetPercent === currentPercent) return;
         animating = true;
 
         const start = currentPercent;
