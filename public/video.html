@@ -28,6 +28,7 @@
         padding: 0;
         height: 100%;
         overflow: hidden;
+        background: #040914;
         font-family: Arial, sans-serif;
       }
       #videoContainer {
@@ -37,10 +38,12 @@
         left: 0;
         width: 100%;
         height: 100%;
-        z-index: -1;
+        background: #040914;
+        z-index: 2;
       }
       #countdownVideo,
       #distributionVideo,
+      #seqVideo,
       #nfbMapFrame,
       #backdrop {
         width: 100%;
@@ -51,6 +54,7 @@
         position: fixed;
         inset: 0;
         border: 0;
+        background: #040914;
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
@@ -514,7 +518,7 @@
         </video>
       </div>
       <div id="videoContainer">
-        <video id="countdownVideo" playsinline preload="auto">
+        <video id="countdownVideo" playsinline preload="none">
           <source src="videos/countdown-new.mp4" type="video/mp4" />
         </video>
         <video id="distributionVideo" playsinline preload="auto" style="display: none">
@@ -523,6 +527,7 @@
         <video id="loopingVideo" loop playsinline preload="auto" style="display: none">
           <source src="videos/last-loop.mp4" type="video/mp4" />
         </video>
+        <video id="seqVideo" playsinline preload="auto" style="display: none"></video>
       </div>
     </div>
 
@@ -541,13 +546,16 @@
       const countdownVideo = document.getElementById("countdownVideo");
       const distributionVideo = document.getElementById("distributionVideo");
       const loopingVideo = document.getElementById("loopingVideo");
+      const seqVideo = document.getElementById("seqVideo");
       const nfbMapFrame = document.getElementById("nfbMapFrame");
       const modal = document.getElementById("modal");
       const participateBtn = document.getElementById("participateBtn");
       const loadingScreen = document.getElementById("loadingScreen");
       const percentDisplay = document.getElementById("percentDisplay");
       const loadingFill = document.getElementById("loadingFill");
+      const loadingText = document.getElementById("loadingText");
       const hub = document.getElementById("hub");
+      let launchTimer = null;
       const TOTAL_LAPTOPS = 5;
       const isPreview = new URLSearchParams(window.location.search).get("preview") === "1";
 
@@ -555,6 +563,7 @@
         countdownVideo.muted = true;
         distributionVideo.muted = true;
         loopingVideo.muted = true;
+        seqVideo.muted = true;
         nfbMapFrame.src = "/nfb-map.html?stage=1&muted=1";
       }
 
@@ -599,7 +608,7 @@
         if (hub) hub.classList.toggle("all", pressed.size >= TOTAL_LAPTOPS);
       }
 
-      let hasParticipated = false;
+      let hasParticipated = isPreview;
       let launched = false;
       let currentPercent = 0;
       let targetPercent = 0;
@@ -609,6 +618,11 @@
         backdropVideo.style.display = mode === "background" ? "block" : "none";
         videoContainer.style.display = mode === "video" ? "block" : "none";
         loadingScreen.style.display = mode === "loading" ? "flex" : "none";
+      }
+
+      if (isPreview) {
+        modal.style.display = "none";
+        setDisplayMode("loading");
       }
 
       function startLoopingVideo() {
@@ -632,48 +646,140 @@
         }
       }
 
+      let sequenceSteps = [
+        { kind: "map", file: "", loop: false },
+        { kind: "video", file: "last-loop.mp4", loop: true },
+      ];
+      let activeStepIndex = -1;
+      let currentSeqSrc = "";
+
+      function stopAllVideos() {
+        [countdownVideo, distributionVideo, loopingVideo, seqVideo].forEach(function (v) {
+          v.pause();
+          try { v.currentTime = 0; } catch {}
+          v.style.display = "none";
+        });
+      }
+
+      function applyVideoMuteState(enabled) {
+        const en = isPreview ? false : Boolean(enabled);
+        countdownVideo.muted = !en;
+        distributionVideo.muted = !en;
+        loopingVideo.muted = !en;
+        seqVideo.muted = !en;
+      }
+
+      function launchCinematicMap() {
+        clearTimeout(launchTimer);
+        modal.style.display = "none";
+        stopAllVideos();
+        setDisplayMode("video");
+        nfbMapFrame.classList.add("active");
+        syncMapStateToFrame(latestMapState);
+        postToMap({ type: "replay-nfb-cinematic" });
+      }
+
+      function playSequenceStep(idx) {
+        if (!Array.isArray(sequenceSteps) || idx < 0 || idx >= sequenceSteps.length) return;
+        const step = sequenceSteps[idx];
+        activeStepIndex = idx;
+        if (!isPreview) socket.emit("sequence-status", { activeIndex: idx });
+
+        clearTimeout(launchTimer);
+        modal.style.display = "none";
+        stopAllVideos();
+        setDisplayMode("video");
+
+        if (step.kind === "map") {
+          nfbMapFrame.classList.add("active");
+          syncMapStateToFrame(latestMapState);
+          postToMap({ type: "replay-nfb-cinematic" });
+          return;
+        }
+
+        // Video step
+        nfbMapFrame.classList.remove("active");
+        postToMap({ type: "reset-nfb-cinematic" });
+        const targetSrc = "videos/" + encodeURIComponent(step.file);
+        if (currentSeqSrc !== targetSrc) {
+          currentSeqSrc = targetSrc;
+          seqVideo.src = targetSrc;
+          seqVideo.load();
+        }
+        seqVideo.loop = Boolean(step.loop);
+        applyVideoMuteState(latestMapState ? latestMapState.soundEnabled : true);
+        seqVideo.style.display = "block";
+        try { seqVideo.currentTime = 0; } catch {}
+        seqVideo.play().catch(function (e) {
+          if (e && e.name !== "AbortError") console.error("Error playing sequence video:", step.file, e);
+        });
+      }
+
+      function advanceSequence() {
+        if (activeStepIndex < 0 || activeStepIndex >= sequenceSteps.length) return;
+        const cur = sequenceSteps[activeStepIndex];
+        if (cur && cur.loop) {
+          playSequenceStep(activeStepIndex);
+          return;
+        }
+        if (activeStepIndex + 1 < sequenceSteps.length) {
+          playSequenceStep(activeStepIndex + 1);
+        }
+      }
+
+      seqVideo.addEventListener("ended", function () {
+        advanceSequence();
+      });
+
       window.addEventListener("message", function (ev) {
         if (!ev.data || typeof ev.data !== "object") return;
         if (ev.data.type === "nfb-cinematic-started") {
           if (!isPreview) socket.emit("map-status", { playing: true });
         } else if (ev.data.type === "nfb-cinematic-ended") {
-          startLoopingVideo();
           if (!isPreview) socket.emit("map-status", { playing: false });
+          if (activeStepIndex >= 0 && sequenceSteps[activeStepIndex] && sequenceSteps[activeStepIndex].kind === "map") {
+            advanceSequence();
+          } else {
+            startLoopingVideo();
+          }
         }
       });
 
       socket.on("map-state", function (st) {
         latestMapState = st;
-        const en = isPreview ? false : Boolean(st && st.soundEnabled);
-        countdownVideo.muted = !en;
-        distributionVideo.muted = !en;
-        loopingVideo.muted = !en;
+        applyVideoMuteState(st && st.soundEnabled);
         syncMapStateToFrame(st);
+      });
+
+      socket.on("sequence-state", function (st) {
+        if (st && Array.isArray(st.steps) && st.steps.length) {
+          sequenceSteps = st.steps;
+        }
+        if (isPreview && st && Number.isInteger(st.activeIndex) && st.activeIndex >= 0 && st.activeIndex !== activeStepIndex) {
+          playSequenceStep(st.activeIndex);
+        }
+      });
+
+      socket.on("sequence-command", function (cmd) {
+        if (!cmd || typeof cmd !== "object") return;
+        if (cmd.type === "play-step") {
+          playSequenceStep(Number(cmd.index));
+        }
       });
 
       socket.on("map-command", function (cmd) {
         if (!cmd || typeof cmd !== "object") return;
         if (cmd.type === "play-cinematic") {
-          modal.style.display = "none";
-          countdownVideo.pause();
-          distributionVideo.pause();
-          loopingVideo.pause();
-          countdownVideo.currentTime = 0;
-          distributionVideo.currentTime = 0;
-          loopingVideo.currentTime = 0;
-          countdownVideo.style.display = "none";
-          distributionVideo.style.display = "none";
-          loopingVideo.style.display = "none";
-          setDisplayMode("video");
-          nfbMapFrame.classList.add("active");
-          syncMapStateToFrame(latestMapState);
-          postToMap({ type: "replay-nfb-cinematic" });
+          const mapIdx = sequenceSteps.findIndex(function (s) { return s.kind === "map"; });
+          if (mapIdx >= 0) {
+            playSequenceStep(mapIdx);
+          } else {
+            activeStepIndex = -1;
+            launchCinematicMap();
+          }
         } else if (cmd.type === "set-sound") {
-          const en = isPreview ? false : Boolean(cmd.enabled);
-          countdownVideo.muted = !en;
-          distributionVideo.muted = !en;
-          loopingVideo.muted = !en;
-          postToMap({ type: "set-sound", enabled: en });
+          applyVideoMuteState(cmd.enabled);
+          postToMap({ type: "set-sound", enabled: isPreview ? false : Boolean(cmd.enabled) });
         } else if (cmd.type === "set-clean") {
           postToMap({ type: "set-clean", enabled: Boolean(cmd.enabled) });
         } else if (cmd.type === "set-voiceover") {
@@ -683,7 +789,6 @@
 
       countdownVideo.addEventListener("ended", function () {
         countdownVideo.style.display = "none";
-        // Prefer our live local HTML zoom map when no custom nfb-distribution.mp4 override exists
         if (!distributionAvailable || distributionVideo.networkState === HTMLMediaElement.NETWORK_NO_SOURCE) {
           startLocalCinematicMap();
           return;
@@ -700,19 +805,7 @@
       });
 
       function startAVP() {
-        modal.style.display = "none";
-        setDisplayMode("video");
-        countdownVideo.style.display = "block";
-        distributionVideo.style.display = "none";
-        loopingVideo.style.display = "none";
-        nfbMapFrame.classList.remove("active");
-        if (nfbMapFrame.contentWindow) {
-          nfbMapFrame.contentWindow.postMessage({ type: "reset-nfb-cinematic" }, "*");
-        }
-        countdownVideo.currentTime = 0;
-        countdownVideo.play().catch(function (e) {
-          console.error("Error playing video:", e);
-        });
+        playSequenceStep(0);
       }
 
       // "Participate" doubles as the user gesture that unlocks autoplay.
@@ -739,40 +832,47 @@
         if (hasParticipated) animatePercent();
       });
 
-      // 5th press completes 100% -> fire the launch AVP.
+      // 5th press completes 100% -> let 100% animation settle, then launch configured sequence step 1
       socket.on("launch", function () {
         launched = true;
         if (!hasParticipated) return;
-        startAVP();
+        clearTimeout(launchTimer);
+        currentPercent = 100;
+        targetPercent = 100;
+        animating = false;
+        percentDisplay.textContent = "100%";
+        loadingFill.style.width = "100%";
+        if (loadingText) loadingText.textContent = "Launching PICS PP Phase 2…";
+        launchTimer = setTimeout(function () {
+          if (launched) startAVP();
+        }, 1150);
       });
 
-      // Reset from the dashboard: back to the Participate modal at 0%.
+      // Reset from the dashboard: back to the Participate modal at 0% (preview stays ready at 0% loading screen).
       socket.on("reset", function () {
-        hasParticipated = false;
+        clearTimeout(launchTimer);
+        activeStepIndex = -1;
+        hasParticipated = isPreview;
         launched = false;
         currentPercent = 0;
         targetPercent = 0;
         animating = false;
         percentDisplay.textContent = "0%";
         loadingFill.style.width = "0%";
+        if (loadingText) loadingText.textContent = "Preparing launch";
 
-        countdownVideo.pause();
-        distributionVideo.pause();
-        loopingVideo.pause();
-        countdownVideo.currentTime = 0;
-        distributionVideo.currentTime = 0;
-        loopingVideo.currentTime = 0;
-        countdownVideo.style.display = "block";
-        distributionVideo.style.display = "none";
-        loopingVideo.style.display = "none";
+        stopAllVideos();
         nfbMapFrame.classList.remove("active");
-        if (nfbMapFrame.contentWindow) {
-          nfbMapFrame.contentWindow.postMessage({ type: "reset-nfb-cinematic" }, "*");
-        }
+        postToMap({ type: "reset-nfb-cinematic" });
 
         renderConnections([]);
-        setDisplayMode("background");
-        modal.style.display = "flex";
+        if (isPreview) {
+          modal.style.display = "none";
+          setDisplayMode("loading");
+        } else {
+          setDisplayMode("background");
+          modal.style.display = "flex";
+        }
       });
 
       // Animate the big % number + bar toward targetPercent (ease-out cubic).

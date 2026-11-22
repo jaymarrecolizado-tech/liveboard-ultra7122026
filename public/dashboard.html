@@ -270,6 +270,104 @@
         box-shadow: 0 0 18px rgba(56, 189, 248, 0.5);
       }
 
+      /* Launch Sequence Controller */
+      #seqBox {
+        margin-top: 1rem;
+        padding-top: 0.9rem;
+        border-top: 2px solid #e2e8f0;
+      }
+      #seqHeader {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.6rem;
+      }
+      #seqHeader h2 {
+        margin: 0;
+        border: 0;
+        padding: 0;
+      }
+      .seq-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+      #seqList { display: flex; flex-direction: column; gap: 0.45rem; }
+      .seq-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.65rem;
+        border-radius: 10px;
+        border: 1.5px solid #cbd5e1;
+        background: #f8fafc;
+        transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+      }
+      .seq-row.active {
+        border-color: var(--green);
+        background: #f0fdf4;
+        box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.2);
+      }
+      .seq-num {
+        width: 24px;
+        height: 24px;
+        border-radius: 999px;
+        background: var(--navy);
+        color: #fff;
+        font-size: 0.72rem;
+        font-weight: 800;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .seq-row.active .seq-num { background: var(--green); }
+      .seq-select {
+        flex: 1;
+        min-width: 180px;
+        padding: 0.36rem 0.55rem;
+        border-radius: 8px;
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        color: var(--ink);
+        font-size: 0.8rem;
+        font-weight: 600;
+      }
+      .seq-loop {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        font-size: 0.74rem;
+        font-weight: 700;
+        color: #334155;
+        white-space: nowrap;
+        cursor: pointer;
+        user-select: none;
+      }
+      .seq-live {
+        font-size: 0.65rem;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        padding: 0.15rem 0.45rem;
+        border-radius: 999px;
+        background: var(--green);
+        color: #fff;
+        text-transform: uppercase;
+      }
+      .seq-icon-btn {
+        border: 1px solid #cbd5e1;
+        background: #fff;
+        color: var(--navy-dark);
+        border-radius: 7px;
+        padding: 0.28rem 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .seq-icon-btn:hover { background: #e2e8f0; }
+      .seq-icon-btn.play { background: var(--navy); color: #fff; border-color: var(--navy); }
+      .seq-icon-btn.play:hover { filter: brightness(1.15); }
+      .seq-icon-btn.del { color: var(--red); }
+      .seq-icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
       #toast {
         position: fixed;
         bottom: 1.2rem;
@@ -347,6 +445,22 @@
         </div>
         <div id="previewWrap">
           <iframe id="displayPreview" src="/?preview=1" title="Launch display"></iframe>
+        </div>
+
+        <div id="seqBox">
+          <div id="seqHeader">
+            <h2>Launch Sequence (Plays After 100%)</h2>
+            <div class="seq-actions">
+              <button class="mini-btn" id="seqAddBtn">+ Add Step</button>
+              <button class="mini-btn" id="seqNextBtn">⏭ Next Step</button>
+              <button class="mini-btn" id="seqRefreshBtn">↻ Refresh Videos</button>
+            </div>
+          </div>
+          <div id="seqList"></div>
+          <p class="hint" style="margin-top:0.5rem;">
+            Drop any new <code>.mp4</code> into <code>public/videos/</code> and click <strong>Refresh Videos</strong>.
+            Each step plays in order after 100% tablet completion; check <strong>Loop ∞</strong> on the final stage backdrop.
+          </p>
         </div>
       </section>
     </main>
@@ -512,6 +626,148 @@
       mapPlayBtn.addEventListener("click", () => {
         socket.emit("map-control", { action: "play-cinematic" });
         showToast("Cinematic map triggered");
+      });
+
+      // ---- Launch Sequence Controller ----
+      const seqListEl = document.getElementById("seqList");
+      let seqState = { steps: [], activeIndex: -1, availableVideos: [] };
+
+      function pushSequenceSteps(steps) {
+        socket.emit("sequence-update", { steps });
+      }
+
+      function renderSequence(st) {
+        if (st && typeof st === "object") seqState = st;
+        seqListEl.innerHTML = "";
+        const steps = seqState.steps || [];
+        const videos = seqState.availableVideos || [];
+
+        steps.forEach((step, idx) => {
+          const row = document.createElement("div");
+          row.className = "seq-row" + (seqState.activeIndex === idx ? " active" : "");
+
+          const num = document.createElement("span");
+          num.className = "seq-num";
+          num.textContent = String(idx + 1);
+          row.appendChild(num);
+
+          const sel = document.createElement("select");
+          sel.className = "seq-select";
+          const mapOpt = document.createElement("option");
+          mapOpt.value = "__MAP__";
+          mapOpt.textContent = "🗺 Live Cinematic Map (nfb-map.html?stage=1)";
+          sel.appendChild(mapOpt);
+
+          videos.forEach((file) => {
+            const opt = document.createElement("option");
+            opt.value = "video:" + file;
+            opt.textContent = "🎬 " + file;
+            sel.appendChild(opt);
+          });
+          sel.value = step.kind === "map" ? "__MAP__" : "video:" + step.file;
+          sel.addEventListener("change", () => {
+            const next = steps.map((s) => ({ ...s }));
+            if (sel.value === "__MAP__") {
+              next[idx] = { kind: "map", file: "", loop: next[idx].loop };
+            } else {
+              next[idx] = { kind: "video", file: sel.value.slice(6), loop: next[idx].loop };
+            }
+            pushSequenceSteps(next);
+          });
+          row.appendChild(sel);
+
+          const loopLabel = document.createElement("label");
+          loopLabel.className = "seq-loop";
+          const loopCb = document.createElement("input");
+          loopCb.type = "checkbox";
+          loopCb.checked = Boolean(step.loop);
+          loopCb.addEventListener("change", () => {
+            const next = steps.map((s) => ({ ...s }));
+            next[idx].loop = loopCb.checked;
+            pushSequenceSteps(next);
+          });
+          loopLabel.appendChild(loopCb);
+          loopLabel.appendChild(document.createTextNode("Loop ∞"));
+          row.appendChild(loopLabel);
+
+          if (seqState.activeIndex === idx) {
+            const liveBadge = document.createElement("span");
+            liveBadge.className = "seq-live";
+            liveBadge.textContent = "LIVE";
+            row.appendChild(liveBadge);
+          }
+
+          const playBtn = document.createElement("button");
+          playBtn.className = "seq-icon-btn play";
+          playBtn.title = "Play this step now on stage";
+          playBtn.textContent = "▶";
+          playBtn.addEventListener("click", () => {
+            socket.emit("sequence-jump", { index: idx });
+            showToast("Playing step " + (idx + 1));
+          });
+          row.appendChild(playBtn);
+
+          const upBtn = document.createElement("button");
+          upBtn.className = "seq-icon-btn";
+          upBtn.title = "Move up";
+          upBtn.textContent = "↑";
+          upBtn.disabled = idx === 0;
+          upBtn.addEventListener("click", () => {
+            if (idx === 0) return;
+            const next = steps.map((s) => ({ ...s }));
+            [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+            pushSequenceSteps(next);
+          });
+          row.appendChild(upBtn);
+
+          const downBtn = document.createElement("button");
+          downBtn.className = "seq-icon-btn";
+          downBtn.title = "Move down";
+          downBtn.textContent = "↓";
+          downBtn.disabled = idx === steps.length - 1;
+          downBtn.addEventListener("click", () => {
+            if (idx >= steps.length - 1) return;
+            const next = steps.map((s) => ({ ...s }));
+            [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+            pushSequenceSteps(next);
+          });
+          row.appendChild(downBtn);
+
+          const delBtn = document.createElement("button");
+          delBtn.className = "seq-icon-btn del";
+          delBtn.title = "Remove step";
+          delBtn.textContent = "✕";
+          delBtn.disabled = steps.length <= 1;
+          delBtn.addEventListener("click", () => {
+            if (steps.length <= 1) return;
+            const next = steps.filter((_, i) => i !== idx);
+            pushSequenceSteps(next);
+          });
+          row.appendChild(delBtn);
+
+          seqListEl.appendChild(row);
+        });
+      }
+
+      socket.on("sequence-state", renderSequence);
+
+      document.getElementById("seqAddBtn").addEventListener("click", () => {
+        const next = (seqState.steps || []).map((s) => ({ ...s }));
+        const vids = seqState.availableVideos || [];
+        const pick = vids.includes("last-loop.mp4") ? "last-loop.mp4" : (vids[0] || "");
+        if (pick) next.push({ kind: "video", file: pick, loop: false });
+        else next.push({ kind: "map", file: "", loop: false });
+        pushSequenceSteps(next);
+      });
+
+      document.getElementById("seqNextBtn").addEventListener("click", () => {
+        socket.emit("sequence-next");
+        showToast("Advancing to next step");
+      });
+
+      document.getElementById("seqRefreshBtn").addEventListener("click", () => {
+        socket.emit("sequence-refresh");
+        showToast("Video list refreshed");
       });
     </script>
   </body>
